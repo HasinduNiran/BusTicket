@@ -79,6 +79,15 @@ class ApiService {
     });
   }
 
+  // Buses endpoints
+  async getConductorBuses() {
+    return this.api.get('/buses/conductor/assigned');
+  }
+
+  async getRoutesByIds(routeIds) {
+    return this.api.post('/routes/by-ids', { routeIds });
+  }
+
   // Tickets endpoints
   async generateTicket(ticketData) {
     return this.api.post('/tickets/generate', ticketData);
@@ -97,11 +106,12 @@ class ApiService {
   }
 
   // Fares endpoints
-  async calculateFareDetail(routeId, fromSection, toSection) {
+  async calculateFareDetail(routeId, fromSection, toSection, category = 'normal') {
     return this.api.post('/fares/calculate', {
       routeId,
       fromSection,
       toSection,
+      category,
     });
   }
 

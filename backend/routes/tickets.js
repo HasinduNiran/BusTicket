@@ -1,8 +1,8 @@
-const express = require('express');
-const Ticket = require('../models/Ticket');
-const Stop = require('../models/Stop');
-const BusRoute = require('../models/BusRoute');
-const { auth, conductorAuth } = require('../middleware/auth');
+import express from 'express';
+import Ticket from '../models/Ticket.js';
+import Stop from '../models/Stop.js';
+import BusRoute from '../models/BusRoute.js';
+import { auth, conductorAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Generate ticket
@@ -224,4 +224,4 @@ router.patch('/:id/cancel', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

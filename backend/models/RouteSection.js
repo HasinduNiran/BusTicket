@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const routeSectionSchema = new mongoose.Schema({
   routeId: {
@@ -56,4 +56,4 @@ routeSectionSchema.index({ routeId: 1, stopId: 1, category: 1 }, { unique: true 
 // Create index for route and category for efficient querying
 routeSectionSchema.index({ routeId: 1, category: 1, order: 1 });
 
-module.exports = mongoose.model('RouteSection', routeSectionSchema);
+export default mongoose.model('RouteSection', routeSectionSchema);

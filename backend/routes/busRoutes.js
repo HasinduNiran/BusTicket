@@ -1,6 +1,6 @@
-const express = require('express');
-const BusRoute = require('../models/BusRoute');
-const { auth, adminAuth, busOwnerAuth } = require('../middleware/auth');
+import express from 'express';
+import BusRoute from '../models/BusRoute.js';
+import { auth, adminAuth, busOwnerAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get all routes
@@ -30,6 +30,29 @@ router.get('/:id', auth, async (req, res) => {
     res.json({ route });
   } catch (error) {
     console.error('Get route error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get routes by IDs (for mobile app)
+router.post('/by-ids', auth, async (req, res) => {
+  try {
+    const { routeIds } = req.body;
+    
+    if (!routeIds || !Array.isArray(routeIds)) {
+      return res.status(400).json({ message: 'Route IDs array is required' });
+    }
+
+    const routes = await BusRoute.find({ 
+      _id: { $in: routeIds },
+      isActive: true 
+    })
+    .populate('createdBy', 'username email')
+    .sort({ routeNumber: 1 });
+
+    res.json({ routes });
+  } catch (error) {
+    console.error('Get routes by IDs error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -142,4 +165,4 @@ router.delete('/:id', auth, adminAuth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

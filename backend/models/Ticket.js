@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const ticketSchema = new mongoose.Schema({
   ticketNumber: {
@@ -98,4 +98,4 @@ ticketSchema.pre('save', async function(next) {
   next();
 });
 
-module.exports = mongoose.model('Ticket', ticketSchema);
+export default mongoose.model('Ticket', ticketSchema);

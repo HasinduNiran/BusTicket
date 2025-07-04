@@ -1,12 +1,13 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Import models
-const User = require('./models/User');
-const BusRoute = require('./models/BusRoute');
-const Stop = require('./models/Stop');
-const Section = require('./models/Section');
+import User from './models/User.js';
+import BusRoute from './models/BusRoute.js';
+import Stop from './models/Stop.js';
+import Section from './models/Section.js';
 
 const seedDatabase = async () => {
   try {

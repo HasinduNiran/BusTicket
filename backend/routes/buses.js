@@ -1,8 +1,8 @@
-const express = require('express');
-const Bus = require('../models/Bus');
-const BusRoute = require('../models/BusRoute');
-const User = require('../models/User');
-const { auth, adminAuth, busOwnerAuth } = require('../middleware/auth');
+import express from 'express';
+import Bus from '../models/Bus.js';
+import BusRoute from '../models/BusRoute.js';
+import User from '../models/User.js';
+import { auth, adminAuth, busOwnerAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get all buses
@@ -241,4 +241,23 @@ router.get('/route/:routeId/category/:category', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+// Get buses assigned to current conductor
+router.get('/conductor/assigned', auth, async (req, res) => {
+  try {
+    const conductorId = req.user.userId;
+    
+    const buses = await Bus.find({ 
+      conductorId,
+      isActive: true 
+    })
+    .populate('routeId', 'routeName routeNumber startPoint endPoint distance estimatedDuration')
+    .sort({ busNumber: 1 });
+
+    res.json({ buses });
+  } catch (error) {
+    console.error('Get conductor buses error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+export default router;

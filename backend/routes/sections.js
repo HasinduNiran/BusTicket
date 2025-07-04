@@ -1,6 +1,6 @@
-const express = require('express');
-const Section = require('../models/Section');
-const { auth, adminAuth, busOwnerAuth } = require('../middleware/auth');
+import express from 'express';
+import Section from '../models/Section.js';
+import { auth, adminAuth, busOwnerAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get all sections by category
@@ -166,4 +166,4 @@ router.delete('/:id', auth, adminAuth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

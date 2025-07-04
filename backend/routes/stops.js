@@ -1,7 +1,7 @@
-const express = require('express');
-const Stop = require('../models/Stop');
-const BusRoute = require('../models/BusRoute');
-const { auth, adminAuth, busOwnerAuth } = require('../middleware/auth');
+import express from 'express';
+import Stop from '../models/Stop.js';
+import BusRoute from '../models/BusRoute.js';
+import { auth, adminAuth, busOwnerAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get all stops for a route
@@ -190,4 +190,4 @@ router.post('/calculate-fare', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

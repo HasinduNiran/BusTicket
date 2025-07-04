@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const stopSchema = new mongoose.Schema({
   code: {
@@ -42,4 +42,4 @@ const stopSchema = new mongoose.Schema({
 // Create compound index for route and section
 stopSchema.index({ routeId: 1, sectionNumber: 1 });
 
-module.exports = mongoose.model('Stop', stopSchema);
+export default mongoose.model('Stop', stopSchema);

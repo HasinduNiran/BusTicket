@@ -1,9 +1,9 @@
-const express = require('express');
-const RouteSection = require('../models/RouteSection');
-const BusRoute = require('../models/BusRoute');
-const Stop = require('../models/Stop');
-const Section = require('../models/Section');
-const { auth, adminAuth, busOwnerAuth } = require('../middleware/auth');
+import express from 'express';
+import RouteSection from '../models/RouteSection.js';
+import BusRoute from '../models/BusRoute.js';
+import Stop from '../models/Stop.js';
+import Section from '../models/Section.js';
+import { auth, adminAuth, busOwnerAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get route sections for a specific route and category
@@ -348,4 +348,4 @@ router.post('/auto-generate/:routeId/:category', auth, adminAuth, async (req, re
   }
 });
 
-module.exports = router;
+export default router;

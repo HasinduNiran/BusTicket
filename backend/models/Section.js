@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const sectionSchema = new mongoose.Schema({
   sectionNumber: {
@@ -32,4 +32,4 @@ const sectionSchema = new mongoose.Schema({
 // Create compound unique index for section number and category
 sectionSchema.index({ category: 1, sectionNumber: 1 }, { unique: true });
 
-module.exports = mongoose.model('Section', sectionSchema);
+export default mongoose.model('Section', sectionSchema);

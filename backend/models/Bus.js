@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const busSchema = new mongoose.Schema({
   busNumber: {
@@ -54,4 +54,4 @@ busSchema.index({ routeId: 1, category: 1 });
 busSchema.index({ busNumber: 1 });
 busSchema.index({ conductorId: 1 });
 
-module.exports = mongoose.model('Bus', busSchema);
+export default mongoose.model('Bus', busSchema);

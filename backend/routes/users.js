@@ -1,8 +1,8 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const BusRoute = require('../models/BusRoute');
-const { auth, adminAuth } = require('../middleware/auth');
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
+import BusRoute from '../models/BusRoute.js';
+import { auth, adminAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get all users (Admin only)
@@ -306,4 +306,4 @@ router.get('/routes/available', auth, adminAuth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

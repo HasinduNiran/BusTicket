@@ -1,9 +1,9 @@
-const express = require('express');
-const Stop = require('../models/Stop');
-const Ticket = require('../models/Ticket');
-const Section = require('../models/Section');
-const RouteSection = require('../models/RouteSection');
-const { auth, adminAuth } = require('../middleware/auth');
+import express from 'express';
+import Stop from '../models/Stop.js';
+import Ticket from '../models/Ticket.js';
+import Section from '../models/Section.js';
+import RouteSection from '../models/RouteSection.js';
+import { auth, adminAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 // Get fare between two stops using RouteSection model
@@ -246,4 +246,4 @@ router.get('/sections/:routeId', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
