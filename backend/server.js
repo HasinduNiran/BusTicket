@@ -48,6 +48,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/routes', require('./routes/busRoutes'));
 app.use('/api/sections', require('./routes/sections'));
+app.use('/api/route-sections', require('./routes/routeSections'));
 app.use('/api/stops', require('./routes/stops'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/fares', require('./routes/fares'));

@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import API_CONFIG from '../config/api';
 
 const Stops = () => {
   const [stops, setStops] = useState([]);
@@ -41,9 +42,7 @@ const Stops = () => {
     code: '',
     stopName: '',
     sectionNumber: '',
-    fare: '',
     routeId: '',
-    order: '',
   });
 
   useEffect(() => {
@@ -58,7 +57,10 @@ const Stops = () => {
 
   const fetchRoutes = async () => {
     try {
-      const response = await axios.get('/routes');
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_CONFIG.BASE_URL}/routes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const routeList = response.data.routes || [];
       setRoutes(routeList);
       if (routeList.length > 0) {
@@ -75,7 +77,10 @@ const Stops = () => {
   const fetchStops = async () => {
     if (!selectedRoute) return;
     try {
-      const response = await axios.get(`/stops/route/${selectedRoute}`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_CONFIG.BASE_URL}/stops/route/${selectedRoute}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setStops(response.data.stops || []);
     } catch (error) {
       console.error('Error fetching stops:', error);
@@ -89,16 +94,20 @@ const Stops = () => {
       const stopData = {
         ...formData,
         sectionNumber: parseInt(formData.sectionNumber),
-        fare: parseFloat(formData.fare),
-        order: parseInt(formData.order),
         routeId: selectedRoute,
       };
 
       if (editingStop) {
-        await axios.put(`/stops/${editingStop._id}`, stopData);
+        const token = localStorage.getItem('token');
+        await axios.put(`${API_CONFIG.BASE_URL}/stops/${editingStop._id}`, stopData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         toast.success('Stop updated successfully');
       } else {
-        await axios.post('/stops', stopData);
+        const token = localStorage.getItem('token');
+        await axios.post(`${API_CONFIG.BASE_URL}/stops`, stopData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         toast.success('Stop created successfully');
       }
       handleClose();
@@ -115,9 +124,7 @@ const Stops = () => {
       code: stop.code,
       stopName: stop.stopName,
       sectionNumber: stop.sectionNumber.toString(),
-      fare: stop.fare.toString(),
       routeId: stop.routeId,
-      order: stop.order.toString(),
     });
     setOpen(true);
   };
@@ -125,7 +132,10 @@ const Stops = () => {
   const handleDelete = async (stopId) => {
     if (window.confirm('Are you sure you want to delete this stop?')) {
       try {
-        await axios.delete(`/stops/${stopId}`);
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_CONFIG.BASE_URL}/stops/${stopId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         toast.success('Stop deleted successfully');
         fetchStops();
       } catch (error) {
@@ -142,9 +152,7 @@ const Stops = () => {
       code: '',
       stopName: '',
       sectionNumber: '',
-      fare: '',
       routeId: '',
-      order: '',
     });
   };
 
@@ -212,8 +220,6 @@ const Stops = () => {
               <TableCell>Code</TableCell>
               <TableCell>Stop Name</TableCell>
               <TableCell>Section No.</TableCell>
-              <TableCell>Fare (Rs.)</TableCell>
-              <TableCell>Order</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -223,8 +229,6 @@ const Stops = () => {
                 <TableCell>{stop.code}</TableCell>
                 <TableCell>{stop.stopName}</TableCell>
                 <TableCell>{stop.sectionNumber}</TableCell>
-                <TableCell>{stop.fare.toFixed(2)}</TableCell>
-                <TableCell>{stop.order}</TableCell>
                 <TableCell>
                   <IconButton
                     color="primary"
@@ -295,37 +299,12 @@ const Stops = () => {
                   margin="normal"
                 />
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   name="sectionNumber"
                   label="Section Number"
                   type="number"
                   value={formData.sectionNumber}
-                  onChange={handleInputChange}
-                  fullWidth
-                  required
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  name="fare"
-                  label="Fare (Rs.)"
-                  type="number"
-                  step="0.01"
-                  value={formData.fare}
-                  onChange={handleInputChange}
-                  fullWidth
-                  required
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  name="order"
-                  label="Order"
-                  type="number"
-                  value={formData.order}
                   onChange={handleInputChange}
                   fullWidth
                   required

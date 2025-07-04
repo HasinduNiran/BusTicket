@@ -16,11 +16,6 @@ const stopSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  fare: {
-    type: Number,
-    required: true,
-    min: 0
-  },
   routeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'BusRoute',
@@ -39,10 +34,6 @@ const stopSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  order: {
-    type: Number,
-    required: true
   }
 }, {
   timestamps: true
@@ -50,6 +41,5 @@ const stopSchema = new mongoose.Schema({
 
 // Create compound index for route and section
 stopSchema.index({ routeId: 1, sectionNumber: 1 });
-stopSchema.index({ routeId: 1, order: 1 });
 
 module.exports = mongoose.model('Stop', stopSchema);

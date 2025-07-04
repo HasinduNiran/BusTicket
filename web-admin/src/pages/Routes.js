@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import API_CONFIG from '../config/api';
 
 const Routes = () => {
   const [routes, setRoutes] = useState([]);
@@ -45,7 +46,10 @@ const Routes = () => {
 
   const fetchRoutes = async () => {
     try {
-      const response = await axios.get('/routes');
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_CONFIG.BASE_URL}/routes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setRoutes(response.data.routes || []);
     } catch (error) {
       console.error('Error fetching routes:', error);
@@ -58,11 +62,16 @@ const Routes = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       if (editingRoute) {
-        await axios.put(`/routes/${editingRoute._id}`, formData);
+        await axios.put(`${API_CONFIG.BASE_URL}/routes/${editingRoute._id}`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         toast.success('Route updated successfully');
       } else {
-        await axios.post('/routes', formData);
+        await axios.post(`${API_CONFIG.BASE_URL}/routes`, formData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         toast.success('Route created successfully');
       }
       handleClose();
@@ -89,7 +98,10 @@ const Routes = () => {
   const handleDelete = async (routeId) => {
     if (window.confirm('Are you sure you want to delete this route?')) {
       try {
-        await axios.delete(`/routes/${routeId}`);
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_CONFIG.BASE_URL}/routes/${routeId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         toast.success('Route deleted successfully');
         fetchRoutes();
       } catch (error) {

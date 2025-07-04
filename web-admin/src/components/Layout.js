@@ -25,6 +25,7 @@ import {
   Assessment,
   People,
   AccountCircle,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,6 +61,7 @@ const Layout = ({ children }) => {
     { text: 'Routes', icon: <RouteIcon />, path: '/routes' },
     { text: 'Stops', icon: <LocationOn />, path: '/stops' },
     { text: 'Sections', icon: <ViewModule />, path: '/sections' },
+    { text: 'Route Sections', icon: <SettingsIcon />, path: '/route-sections' },
     { text: 'Tickets', icon: <ConfirmationNumber />, path: '/tickets' },
     { text: 'Reports', icon: <Assessment />, path: '/reports' },
   ];

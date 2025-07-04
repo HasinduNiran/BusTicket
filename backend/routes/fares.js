@@ -2,13 +2,14 @@ const express = require('express');
 const Stop = require('../models/Stop');
 const Ticket = require('../models/Ticket');
 const Section = require('../models/Section');
+const RouteSection = require('../models/RouteSection');
 const { auth, adminAuth } = require('../middleware/auth');
 const router = express.Router();
 
-// Get fare between two stops
+// Get fare between two stops using RouteSection model
 router.post('/calculate', auth, async (req, res) => {
   try {
-    const { routeId, fromSection, toSection } = req.body;
+    const { routeId, fromSection, toSection, category = 'normal' } = req.body;
 
     if (fromSection >= toSection) {
       return res.status(400).json({ 
@@ -16,6 +17,44 @@ router.post('/calculate', auth, async (req, res) => {
       });
     }
 
+    // First, try to find route sections (new system)
+    const fromRouteSection = await RouteSection.findOne({ 
+      routeId, 
+      sectionNumber: fromSection,
+      category,
+      isActive: true 
+    }).populate('stopId', 'stopName code');
+
+    const toRouteSection = await RouteSection.findOne({ 
+      routeId, 
+      sectionNumber: toSection,
+      category,
+      isActive: true 
+    }).populate('stopId', 'stopName code');
+
+    if (fromRouteSection && toRouteSection) {
+      // Use new RouteSection system
+      const fare = toRouteSection.fare - fromRouteSection.fare;
+
+      return res.json({
+        fromStop: {
+          stopName: fromRouteSection.stopName,
+          sectionNumber: fromRouteSection.sectionNumber,
+          fare: fromRouteSection.fare
+        },
+        toStop: {
+          stopName: toRouteSection.stopName,
+          sectionNumber: toRouteSection.sectionNumber,
+          fare: toRouteSection.fare
+        },
+        calculatedFare: fare,
+        sections: toSection - fromSection,
+        category: category,
+        system: 'route-section'
+      });
+    }
+
+    // Fallback to old Stop system
     const fromStop = await Stop.findOne({ 
       routeId, 
       sectionNumber: fromSection,
@@ -29,7 +68,7 @@ router.post('/calculate', auth, async (req, res) => {
     });
 
     if (!fromStop || !toStop) {
-      return res.status(404).json({ message: 'Stop(s) not found' });
+      return res.status(404).json({ message: 'Stop(s) not found in either system' });
     }
 
     const fare = toStop.fare - fromStop.fare;
@@ -46,7 +85,8 @@ router.post('/calculate', auth, async (req, res) => {
         fare: toStop.fare
       },
       calculatedFare: fare,
-      sections: toSection - fromSection
+      sections: toSection - fromSection,
+      system: 'legacy-stop'
     });
   } catch (error) {
     console.error('Calculate fare error:', error);

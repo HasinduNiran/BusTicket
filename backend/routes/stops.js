@@ -14,7 +14,7 @@ router.get('/route/:routeId', auth, async (req, res) => {
       isActive: true 
     })
     .populate('routeId', 'routeName routeNumber')
-    .sort({ order: 1 });
+    .sort({ sectionNumber: 1 });
 
     res.json({ stops });
   } catch (error) {
@@ -52,10 +52,8 @@ router.post('/', auth, busOwnerAuth, async (req, res) => {
       code, 
       stopName, 
       sectionNumber, 
-      fare, 
       routeId, 
-      coordinates, 
-      order 
+      coordinates
     } = req.body;
 
     // Check if route exists
@@ -70,14 +68,23 @@ router.post('/', auth, busOwnerAuth, async (req, res) => {
       return res.status(400).json({ message: 'Stop code already exists' });
     }
 
+    // Check if section number already exists for this route
+    const existingSection = await Stop.findOne({ 
+      routeId, 
+      sectionNumber 
+    });
+    if (existingSection) {
+      return res.status(400).json({ 
+        message: 'Section number already exists for this route' 
+      });
+    }
+
     const stop = new Stop({
       code,
       stopName,
       sectionNumber,
-      fare,
       routeId,
-      coordinates,
-      order
+      coordinates
     });
 
     await stop.save();
