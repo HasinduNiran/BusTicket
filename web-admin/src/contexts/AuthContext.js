@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import API_CONFIG from '../config/api';
 
 const AuthContext = createContext();
 
@@ -12,7 +13,7 @@ export const useAuth = () => {
 };
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_CONFIG.BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

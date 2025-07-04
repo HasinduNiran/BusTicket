@@ -1,6 +1,7 @@
 const express = require('express');
 const Stop = require('../models/Stop');
 const Ticket = require('../models/Ticket');
+const Section = require('../models/Section');
 const { auth, adminAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -171,6 +172,36 @@ router.get('/revenue-report', auth, adminAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Get revenue report error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get all sections for a route (for conductor quick reference)
+router.get('/sections/:routeId', auth, async (req, res) => {
+  try {
+    const { routeId } = req.params;
+    
+    const sections = await Section.find({ 
+      routeId, 
+      isActive: true 
+    })
+    .select('sectionNumber fare description')
+    .sort({ sectionNumber: 1 });
+
+    // Format for conductor app
+    const fareStructure = sections.map(section => ({
+      section: section.sectionNumber,
+      fare: section.fare,
+      description: section.description
+    }));
+
+    res.json({ 
+      success: true,
+      fareStructure,
+      totalSections: sections.length
+    });
+  } catch (error) {
+    console.error('Get fare structure error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

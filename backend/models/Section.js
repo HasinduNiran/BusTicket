@@ -11,10 +11,11 @@ const sectionSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  routeId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'BusRoute',
-    required: true
+  category: {
+    type: String,
+    required: true,
+    enum: ['normal', 'semi-luxury', 'luxury', 'super-luxury'],
+    default: 'normal'
   },
   description: {
     type: String,
@@ -28,7 +29,7 @@ const sectionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create compound unique index
-sectionSchema.index({ routeId: 1, sectionNumber: 1 }, { unique: true });
+// Create compound unique index for section number and category
+sectionSchema.index({ category: 1, sectionNumber: 1 }, { unique: true });
 
 module.exports = mongoose.model('Section', sectionSchema);

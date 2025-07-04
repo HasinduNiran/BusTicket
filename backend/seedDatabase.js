@@ -11,10 +11,7 @@ const Section = require('./models/Section');
 const seedDatabase = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(process.env.MONGODB_URI);
     
     console.log('Connected to MongoDB');
 
@@ -77,8 +74,8 @@ const seedDatabase = async () => {
       }
     });
 
-    // Create sections based on your data
-    const sectionsData = [
+    // Create sections for all categories
+    const baseSectionsData = [
       { sectionNumber: 1, fare: 27 },
       { sectionNumber: 2, fare: 35 },
       { sectionNumber: 3, fare: 45 },
@@ -86,15 +83,50 @@ const seedDatabase = async () => {
       { sectionNumber: 5, fare: 66 },
       { sectionNumber: 6, fare: 76 },
       { sectionNumber: 7, fare: 86 },
-      { sectionNumber: 8, fare: 90 }
+      { sectionNumber: 8, fare: 90 },
+      { sectionNumber: 9, fare: 97 },
+      { sectionNumber: 10, fare: 104 },
+      { sectionNumber: 11, fare: 111 },
+      { sectionNumber: 12, fare: 116 },
+      { sectionNumber: 13, fare: 123 },
+      { sectionNumber: 14, fare: 130 },
+      { sectionNumber: 15, fare: 135 },
+      { sectionNumber: 16, fare: 140 },
+      { sectionNumber: 17, fare: 147 },
+      { sectionNumber: 18, fare: 152 },
+      { sectionNumber: 19, fare: 159 },
+      { sectionNumber: 20, fare: 166 },
+      { sectionNumber: 21, fare: 171 },
+      { sectionNumber: 22, fare: 176 },
+      { sectionNumber: 23, fare: 183 },
+      { sectionNumber: 24, fare: 189 },
+      { sectionNumber: 25, fare: 195 },
+      { sectionNumber: 26, fare: 201 },
+      { sectionNumber: 27, fare: 208 },
+      { sectionNumber: 28, fare: 213 },
+      { sectionNumber: 29, fare: 220 },
+      { sectionNumber: 30, fare: 227 },
+      { sectionNumber: 31, fare: 232 }
     ];
 
-    for (const sectionData of sectionsData) {
-      await Section.create({
-        ...sectionData,
-        routeId: sampleRoute._id,
-        description: `Section ${sectionData.sectionNumber} - Rs. ${sectionData.fare}`
-      });
+    // Create sections for each category
+    const categories = [
+      { name: 'normal', multiplier: 1.0 },
+      { name: 'semi-luxury', multiplier: 1.3 },
+      { name: 'luxury', multiplier: 1.6 },
+      { name: 'super-luxury', multiplier: 2.0 }
+    ];
+
+    for (const category of categories) {
+      for (const sectionData of baseSectionsData) {
+        const adjustedFare = Math.round(sectionData.fare * category.multiplier);
+        await Section.create({
+          sectionNumber: sectionData.sectionNumber,
+          fare: adjustedFare,
+          category: category.name,
+          description: `Section ${sectionData.sectionNumber} - Rs. ${adjustedFare} (${category.name})`
+        });
+      }
     }
 
     // Create stops based on your data
@@ -132,7 +164,9 @@ const seedDatabase = async () => {
     console.log(`Route ID: ${sampleRoute._id}`);
     console.log('Route: Embilipitiya - Heen Iluk Hinna');
     console.log('Stops created: 9 stops (Section 0-8)');
-    console.log('Sections created: 8 sections with fares');
+    console.log('Sections created: 124 sections (31 sections × 4 categories)');
+    console.log('Categories: Normal, Semi-luxury, Luxury, Super-luxury');
+    console.log('Fare range: Rs. 27 - Rs. 464 (varies by category)');
 
     process.exit(0);
   } catch (error) {

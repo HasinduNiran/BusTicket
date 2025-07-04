@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import RoutesPage from './pages/Routes';
 import Stops from './pages/Stops';
+import Sections from './pages/Sections';
 import Tickets from './pages/Tickets';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
@@ -42,6 +43,7 @@ function AppContent() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/routes" element={<RoutesPage />} />
         <Route path="/stops" element={<Stops />} />
+        <Route path="/sections" element={<Sections />} />
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/reports" element={<Reports />} />
         {user.role === 'admin' && (

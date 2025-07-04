@@ -20,6 +20,7 @@ import {
   Dashboard,
   Route as RouteIcon,
   LocationOn,
+  ViewModule,
   ConfirmationNumber,
   Assessment,
   People,
@@ -58,6 +59,7 @@ const Layout = ({ children }) => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
     { text: 'Routes', icon: <RouteIcon />, path: '/routes' },
     { text: 'Stops', icon: <LocationOn />, path: '/stops' },
+    { text: 'Sections', icon: <ViewModule />, path: '/sections' },
     { text: 'Tickets', icon: <ConfirmationNumber />, path: '/tickets' },
     { text: 'Reports', icon: <Assessment />, path: '/reports' },
   ];
