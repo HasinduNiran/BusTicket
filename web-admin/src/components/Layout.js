@@ -26,6 +26,7 @@ import {
   People,
   AccountCircle,
   Settings as SettingsIcon,
+  DirectionsBus as BusIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -59,6 +60,7 @@ const Layout = ({ children }) => {
   const menuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
     { text: 'Routes', icon: <RouteIcon />, path: '/routes' },
+    { text: 'Buses', icon: <BusIcon />, path: '/buses' },
     { text: 'Stops', icon: <LocationOn />, path: '/stops' },
     { text: 'Sections', icon: <ViewModule />, path: '/sections' },
     { text: 'Route Sections', icon: <SettingsIcon />, path: '/route-sections' },

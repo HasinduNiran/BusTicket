@@ -43,13 +43,29 @@ router.post('/', auth, busOwnerAuth, async (req, res) => {
       startPoint,
       endPoint,
       distance,
-      estimatedDuration
+      estimatedDuration,
+      category,
+      busNumber,
+      fareMultiplier
     } = req.body;
 
     // Check if route number exists
     const existingRoute = await BusRoute.findOne({ routeNumber });
     if (existingRoute) {
       return res.status(400).json({ message: 'Route number already exists' });
+    }
+
+    // Check if bus number is already assigned (if provided)
+    if (busNumber) {
+      const existingBusRoute = await BusRoute.findOne({ 
+        busNumber, 
+        isActive: true 
+      });
+      if (existingBusRoute) {
+        return res.status(400).json({ 
+          message: 'Bus number already assigned to another route' 
+        });
+      }
     }
 
     const route = new BusRoute({
@@ -59,6 +75,9 @@ router.post('/', auth, busOwnerAuth, async (req, res) => {
       endPoint,
       distance,
       estimatedDuration,
+      category: category || 'normal',
+      busNumber,
+      fareMultiplier,
       createdBy: req.user._id
     });
 

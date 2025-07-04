@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import RoutesPage from './pages/Routes';
+import Buses from './pages/Buses';
 import Stops from './pages/Stops';
 import Sections from './pages/Sections';
 import RouteSections from './pages/RouteSections';
@@ -43,6 +44,7 @@ function AppContent() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/routes" element={<RoutesPage />} />
+        <Route path="/buses" element={<Buses />} />
         <Route path="/stops" element={<Stops />} />
         <Route path="/sections" element={<Sections />} />
         <Route path="/route-sections" element={<RouteSections />} />
