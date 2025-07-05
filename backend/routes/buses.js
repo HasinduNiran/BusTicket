@@ -20,6 +20,13 @@ router.get('/', auth, async (req, res) => {
       .populate('conductorId', 'username email profile.fullName')
       .sort({ busNumber: 1 });
 
+    // Log buses with null routeId for debugging
+    const busesWithNullRoute = buses.filter(bus => !bus.routeId);
+    if (busesWithNullRoute.length > 0) {
+      console.log(`Warning: Found ${busesWithNullRoute.length} buses with null routeId:`, 
+        busesWithNullRoute.map(bus => ({ id: bus._id, busNumber: bus.busNumber })));
+    }
+
     res.json({ buses });
   } catch (error) {
     console.error('Get buses error:', error);
@@ -241,22 +248,57 @@ router.get('/route/:routeId/category/:category', auth, async (req, res) => {
   }
 });
 
-// Get buses assigned to current conductor
+// Get conductor's assigned buses
 router.get('/conductor/assigned', auth, async (req, res) => {
   try {
-    const conductorId = req.user.userId;
+    console.log('=== Conductor Assigned Buses Request ===');
+    console.log('User ID:', req.user._id);
+    console.log('User role:', req.user.role);
     
+    // Check if user is a conductor
+    if (req.user.role !== 'conductor') {
+      console.log('Access denied - user is not a conductor');
+      return res.status(403).json({ message: 'Access denied. Only conductors can access this endpoint.' });
+    }
+
+    // Get conductor details to find their assigned route
+    const conductor = await User.findById(req.user._id).select('conductorDetails username email');
+    console.log('Conductor found:', conductor);
+    
+    if (!conductor || !conductor.conductorDetails || !conductor.conductorDetails.routeId) {
+      console.log('No route assigned to conductor');
+      return res.status(200).json({ 
+        success: true,
+        message: 'No route assigned to this conductor',
+        buses: []
+      });
+    }
+
+    console.log('Conductor route ID:', conductor.conductorDetails.routeId);
+
+    // Get buses for the conductor's assigned route
     const buses = await Bus.find({ 
-      conductorId,
+      routeId: conductor.conductorDetails.routeId,
       isActive: true 
     })
-    .populate('routeId', 'routeName routeNumber startPoint endPoint distance estimatedDuration')
-    .sort({ busNumber: 1 });
+      .populate('routeId', 'routeName routeNumber startPoint endPoint')
+      .populate('conductorId', 'username email profile.fullName')
+      .sort({ busNumber: 1 });
 
-    res.json({ buses });
+    console.log('Found buses for conductor route:', buses.length);
+
+    res.json({ 
+      success: true,
+      buses: buses,
+      message: `Found ${buses.length} bus(es) for your assigned route`
+    });
   } catch (error) {
     console.error('Get conductor buses error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      buses: []
+    });
   }
 });
 

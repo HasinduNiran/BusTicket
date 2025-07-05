@@ -8,6 +8,7 @@ import User from './models/User.js';
 import BusRoute from './models/BusRoute.js';
 import Stop from './models/Stop.js';
 import Section from './models/Section.js';
+import Bus from './models/Bus.js';
 
 const seedDatabase = async () => {
   try {
@@ -21,6 +22,7 @@ const seedDatabase = async () => {
     await BusRoute.deleteMany({});
     await Stop.deleteMany({});
     await Section.deleteMany({});
+    await Bus.deleteMany({});
     
     console.log('Cleared existing data');
 
@@ -150,6 +152,39 @@ const seedDatabase = async () => {
       });
     }
 
+    // Create buses for the route
+    const busesData = [
+      {
+        busNumber: 'NB-1234',
+        category: 'normal',
+        capacity: 52,
+        driverName: 'Kamal Perera',
+        routeId: sampleRoute._id,
+        conductorId: conductor._id,
+        isActive: true
+      },
+      {
+        busNumber: 'NB-5678',
+        category: 'semi-luxury',
+        capacity: 48,
+        driverName: 'Sunil Silva',
+        routeId: sampleRoute._id,
+        isActive: true
+      },
+      {
+        busNumber: 'NB-9101',
+        category: 'luxury',
+        capacity: 40,
+        driverName: 'Nimal Fernando',
+        routeId: sampleRoute._id,
+        isActive: true
+      }
+    ];
+
+    for (const busData of busesData) {
+      await Bus.create(busData);
+    }
+
     console.log('Sample data created successfully!');
     console.log('\n=== LOGIN CREDENTIALS ===');
     console.log('Admin:');
@@ -168,6 +203,10 @@ const seedDatabase = async () => {
     console.log('Sections created: 124 sections (31 sections × 4 categories)');
     console.log('Categories: Normal, Semi-luxury, Luxury, Super-luxury');
     console.log('Fare range: Rs. 27 - Rs. 464 (varies by category)');
+    console.log('\n=== BUSES CREATED ===');
+    console.log('Bus NB-1234 (Normal) - Assigned to conductor');
+    console.log('Bus NB-5678 (Semi-luxury) - Available');
+    console.log('Bus NB-9101 (Luxury) - Available');
 
     process.exit(0);
   } catch (error) {

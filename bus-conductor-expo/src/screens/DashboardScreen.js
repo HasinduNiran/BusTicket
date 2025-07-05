@@ -9,9 +9,9 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-const DashboardScreen = ({ user, onLogout }) => {
+const DashboardScreen = ({ user, onLogout, onRouteSelection }) => {
   const handleRouteSelection = () => {
-    Alert.alert('Route Selection', 'Route selection feature coming soon!');
+    onRouteSelection();
   };
 
   const handleTicketGeneration = () => {

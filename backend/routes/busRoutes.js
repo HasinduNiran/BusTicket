@@ -1,5 +1,6 @@
 import express from 'express';
 import BusRoute from '../models/BusRoute.js';
+import User from '../models/User.js';
 import { auth, adminAuth, busOwnerAuth } from '../middleware/auth.js';
 const router = express.Router();
 
@@ -162,6 +163,66 @@ router.delete('/:id', auth, adminAuth, async (req, res) => {
   } catch (error) {
     console.error('Delete route error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get conductor's assigned routes
+router.get('/conductor/assigned', auth, async (req, res) => {
+  try {
+    console.log('=== Conductor Assigned Routes Request ===');
+    console.log('User ID:', req.user._id);
+    console.log('User role:', req.user.role);
+    console.log('Request headers:', req.headers.authorization);
+    
+    // Check if user is a conductor
+    if (req.user.role !== 'conductor') {
+      console.log('Access denied - user is not a conductor');
+      return res.status(403).json({ message: 'Access denied. Only conductors can access this endpoint.' });
+    }
+
+    // Get conductor details using the user ID from req.user
+    const conductor = await User.findById(req.user._id).select('conductorDetails username email');
+    console.log('Conductor found:', conductor);
+    
+    if (!conductor || !conductor.conductorDetails || !conductor.conductorDetails.routeId) {
+      console.log('No route assigned to conductor');
+      return res.status(200).json({ 
+        success: true,
+        message: 'No routes assigned to this conductor',
+        routes: []
+      });
+    }
+
+    console.log('Conductor route ID:', conductor.conductorDetails.routeId);
+
+    // Get the assigned route
+    const route = await BusRoute.findById(conductor.conductorDetails.routeId)
+      .populate('createdBy', 'username email');
+
+    console.log('Found route:', route);
+
+    if (!route || !route.isActive) {
+      console.log('Route not found or inactive');
+      return res.status(200).json({ 
+        success: true,
+        message: 'Assigned route not found or inactive',
+        routes: []
+      });
+    }
+
+    console.log('Returning assigned route to conductor');
+    res.json({ 
+      success: true,
+      routes: [route], // Return as array to match existing API structure
+      message: 'Assigned route retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Get conductor routes error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      routes: []
+    });
   }
 });
 

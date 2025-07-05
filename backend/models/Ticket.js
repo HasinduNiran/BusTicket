@@ -74,6 +74,12 @@ const ticketSchema = new mongoose.Schema({
     enum: ['active', 'used', 'cancelled'],
     default: 'active'
   },
+  direction: {
+    type: String,
+    enum: ['forward', 'return'],
+    required: true,
+    default: 'forward'
+  },
   qrCode: {
     type: String,
     default: null

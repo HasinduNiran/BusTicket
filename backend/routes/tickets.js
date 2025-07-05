@@ -14,7 +14,8 @@ router.post('/generate', auth, conductorAuth, async (req, res) => {
       routeId, 
       busNumber, 
       passengerCount = 1,
-      paymentMethod = 'cash'
+      paymentMethod = 'cash',
+      direction = 'forward'
     } = req.body;
 
     // Validate section numbers
@@ -61,7 +62,8 @@ router.post('/generate', auth, conductorAuth, async (req, res) => {
       conductorId: req.user._id,
       busNumber,
       passengerCount,
-      paymentMethod
+      paymentMethod,
+      direction
     });
 
     await ticket.save();
@@ -71,6 +73,7 @@ router.post('/generate', auth, conductorAuth, async (req, res) => {
     ]);
 
     res.status(201).json({
+      success: true,
       message: 'Ticket generated successfully',
       ticket
     });

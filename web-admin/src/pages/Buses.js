@@ -143,7 +143,7 @@ const Buses = () => {
     setEditingBus(bus);
     setFormData({
       busNumber: bus.busNumber,
-      routeId: bus.routeId._id,
+      routeId: (bus.routeId && bus.routeId._id) ? bus.routeId._id : '',
       category: bus.category,
       capacity: bus.capacity.toString(),
       driverName: bus.driverName || '',
@@ -336,10 +336,10 @@ const Buses = () => {
                 <TableCell>
                   <Box>
                     <Typography variant="body2" fontWeight="medium">
-                      {bus.routeId.routeName}
+                      {bus.routeId && bus.routeId.routeName ? bus.routeId.routeName : 'No Route Assigned'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {bus.routeId.routeNumber}
+                      {bus.routeId && bus.routeId.routeNumber ? bus.routeId.routeNumber : '-'}
                     </Typography>
                   </Box>
                 </TableCell>
