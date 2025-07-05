@@ -36,6 +36,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+/*
 // Get sections for a route (keeping for backward compatibility)
 router.get('/route/:routeId', auth, async (req, res) => {
   try {
@@ -54,6 +55,7 @@ router.get('/route/:routeId', auth, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+*/
 
 // Create section (Admin/Bus Owner)
 router.post('/', auth, busOwnerAuth, async (req, res) => {

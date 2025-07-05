@@ -18,32 +18,63 @@ router.post('/generate', auth, conductorAuth, async (req, res) => {
       direction = 'forward'
     } = req.body;
 
+
     // Validate section numbers
-    if (fromSectionNumber >= toSectionNumber) {
-      return res.status(400).json({ 
-        message: 'Invalid section numbers. From section must be less than to section.' 
+    if (typeof fromSectionNumber !== 'number' || typeof toSectionNumber !== 'number' || fromSectionNumber < 0 || toSectionNumber <= fromSectionNumber) {
+      return res.status(400).json({
+        message: 'Invalid section numbers. From section must be less than to section and both must be valid numbers.',
+        error: 'INVALID_SECTION_ORDER'
       });
     }
 
-    // Get stops
-    const fromStop = await Stop.findOne({ 
-      routeId, 
+    // Get bus category for fare calculation
+    const Bus = await import('../models/Bus.js').then(module => module.default);
+    const bus = await Bus.findOne({ busNumber, isActive: true }).populate('routeId');
+    if (!bus) {
+      return res.status(404).json({ message: 'Bus not found or inactive' });
+    }
+
+    // Calculate sections traveled
+    const sectionsCount = toSectionNumber - fromSectionNumber;
+
+    // Always use Section table for fare lookup
+    const Section = await import('../models/Section.js').then(module => module.default);
+    let fare = 0;
+    const sectionFare = await Section.findOne({
+      sectionNumber: sectionsCount,
+      category: bus.category,
+      isActive: true
+    });
+    if (sectionFare) {
+      fare = sectionFare.fare * passengerCount;
+    } else {
+      // Fallback to a default formula if not found
+      const baseFare = 25;
+      const perSectionFare = 15;
+      const categoryMultipliers = {
+        'normal': 1.0,
+        'semi-luxury': 1.3,
+        'luxury': 1.6,
+        'super-luxury': 2.0
+      };
+      const multiplier = categoryMultipliers[bus.category] || 1.0;
+      fare = Math.ceil((baseFare + (sectionsCount * perSectionFare)) * multiplier) * passengerCount;
+    }
+
+    // Get stops (for ticket info only, not for fare calculation)
+    const fromStop = await Stop.findOne({
+      routeId,
       sectionNumber: fromSectionNumber,
-      isActive: true 
+      isActive: true
     });
-
-    const toStop = await Stop.findOne({ 
-      routeId, 
+    const toStop = await Stop.findOne({
+      routeId,
       sectionNumber: toSectionNumber,
-      isActive: true 
+      isActive: true
     });
-
     if (!fromStop || !toStop) {
       return res.status(404).json({ message: 'Stop(s) not found' });
     }
-
-    // Calculate fare
-    const fare = (toStop.fare - fromStop.fare) * passengerCount;
 
     // Create ticket
     const ticket = new Ticket({

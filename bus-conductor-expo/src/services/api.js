@@ -116,7 +116,8 @@ export const sectionsAPI = {
 
 // Tickets API
 export const ticketsAPI = {
-  create: (ticketData) => api.post('/tickets/generate', ticketData),
+  generate: (ticketData) => api.post('/tickets/generate', ticketData),
+  create: (ticketData) => api.post('/tickets/generate', ticketData), // Alias for backward compatibility
   getAll: () => api.get('/tickets'),
   getConductorTickets: (conductorId) => api.get(`/tickets/conductor/${conductorId}`),
 };

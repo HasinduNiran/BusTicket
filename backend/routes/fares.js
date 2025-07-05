@@ -11,82 +11,77 @@ router.post('/calculate', auth, async (req, res) => {
   try {
     const { routeId, fromSection, toSection, category = 'normal' } = req.body;
 
+    // Validation
     if (fromSection >= toSection) {
       return res.status(400).json({ 
-        message: 'Invalid section numbers. From section must be less than to section.' 
+        message: 'Invalid section numbers. From section must be less than to section.',
+        error: 'INVALID_SECTION_ORDER'
       });
     }
 
-    // First, try to find route sections (new system)
-    const fromRouteSection = await RouteSection.findOne({ 
-      routeId, 
-      sectionNumber: fromSection,
+    if (fromSection < 0 || toSection < 0) {
+      return res.status(400).json({ 
+        message: 'Section numbers must be non-negative.',
+        error: 'NEGATIVE_SECTION'
+      });
+    }
+
+    const sectionsCount = toSection - fromSection;
+
+
+    // Always use Section table for fare calculation
+    const sectionFare = await Section.findOne({ 
+      sectionNumber: sectionsCount,
       category,
       isActive: true 
-    }).populate('stopId', 'stopName code');
+    });
 
-    const toRouteSection = await RouteSection.findOne({ 
-      routeId, 
-      sectionNumber: toSection,
-      category,
-      isActive: true 
-    }).populate('stopId', 'stopName code');
-
-    if (fromRouteSection && toRouteSection) {
-      // Use new RouteSection system
-      const fare = toRouteSection.fare - fromRouteSection.fare;
-
+    if (sectionFare) {
       return res.json({
         fromStop: {
-          stopName: fromRouteSection.stopName,
-          sectionNumber: fromRouteSection.sectionNumber,
-          fare: fromRouteSection.fare
+          stopName: `Section ${fromSection}`,
+          sectionNumber: fromSection,
+          fare: 0
         },
         toStop: {
-          stopName: toRouteSection.stopName,
-          sectionNumber: toRouteSection.sectionNumber,
-          fare: toRouteSection.fare
+          stopName: `Section ${toSection}`,
+          sectionNumber: toSection,
+          fare: sectionFare.fare
         },
-        calculatedFare: fare,
-        sections: toSection - fromSection,
+        calculatedFare: sectionFare.fare,
+        sections: sectionsCount,
         category: category,
-        system: 'route-section'
+        system: 'section-based'
       });
     }
 
-    // Fallback to old Stop system
-    const fromStop = await Stop.findOne({ 
-      routeId, 
-      sectionNumber: fromSection,
-      isActive: true 
-    });
-
-    const toStop = await Stop.findOne({ 
-      routeId, 
-      sectionNumber: toSection,
-      isActive: true 
-    });
-
-    if (!fromStop || !toStop) {
-      return res.status(404).json({ message: 'Stop(s) not found in either system' });
-    }
-
-    const fare = toStop.fare - fromStop.fare;
-
-    res.json({
+    // Fallback: use formula if section fare not found
+    const baseFare = 25; // Base fare
+    const perSectionFare = 15; // Per section fare
+    // Category multipliers
+    const categoryMultipliers = {
+      'normal': 1.0,
+      'semi-luxury': 1.3,
+      'luxury': 1.6,
+      'super-luxury': 2.0
+    };
+    const multiplier = categoryMultipliers[category] || 1.0;
+    const calculatedFare = Math.ceil((baseFare + (sectionsCount * perSectionFare)) * multiplier);
+    return res.json({
       fromStop: {
-        stopName: fromStop.stopName,
-        sectionNumber: fromStop.sectionNumber,
-        fare: fromStop.fare
+        stopName: `Section ${fromSection}`,
+        sectionNumber: fromSection,
+        fare: 0
       },
       toStop: {
-        stopName: toStop.stopName,
-        sectionNumber: toStop.sectionNumber,
-        fare: toStop.fare
+        stopName: `Section ${toSection}`,
+        sectionNumber: toSection,
+        fare: calculatedFare
       },
-      calculatedFare: fare,
-      sections: toSection - fromSection,
-      system: 'legacy-stop'
+      calculatedFare: calculatedFare,
+      sections: sectionsCount,
+      category: category,
+      system: 'calculated'
     });
   } catch (error) {
     console.error('Calculate fare error:', error);
@@ -104,20 +99,32 @@ router.get('/matrix/:routeId', auth, async (req, res) => {
       isActive: true 
     }).sort({ sectionNumber: 1 });
 
+    // Build fare matrix using Section table for each section count
     const fareMatrix = [];
-    
     for (let i = 0; i < stops.length; i++) {
       const row = [];
       for (let j = 0; j < stops.length; j++) {
         if (i >= j) {
           row.push(null); // No fare for same or backward direction
         } else {
-          const fare = stops[j].fare - stops[i].fare;
+          const sectionsCount = stops[j].sectionNumber - stops[i].sectionNumber;
+          // Always use Section table for fare
+          // Default to 'normal' category for matrix
+          // (Optionally, could allow category as query param)
+          // eslint-disable-next-line no-await-in-loop
+          const sectionFare = await Section.findOne({ sectionNumber: sectionsCount, category: 'normal', isActive: true });
+          let fare = sectionFare ? sectionFare.fare : null;
+          if (fare === null) {
+            // Fallback formula
+            const baseFare = 25;
+            const perSectionFare = 15;
+            fare = Math.ceil(baseFare + (sectionsCount * perSectionFare));
+          }
           row.push({
             from: stops[i].stopName,
             to: stops[j].stopName,
             fare: fare,
-            sections: stops[j].sectionNumber - stops[i].sectionNumber
+            sections: sectionsCount
           });
         }
       }

@@ -97,22 +97,31 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     }
 
     const fromSection = parseInt(sectionNumber);
-    const sections = Math.abs(selectedToStopIndex - selectedFromStopIndex);
+    const toStopSection = stops[selectedToStopIndex]?.sectionNumber || selectedToStopIndex;
     
-    // Base fare calculation
+    // Validation: From section must be less than to section
+    if (fromSection >= toStopSection) {
+      setFare(0);
+      return;
+    }
+
+    // Calculate sections count (this is the key fix)
+    const sectionsCount = toStopSection - fromSection;
+    
+    // Base fare calculation - now based on sections traveled, not absolute numbers
     let baseFare = 25; // Base fare
     let sectionFare = 15; // Per section fare
     
     // Category multipliers
     const categoryMultipliers = {
       'normal': 1.0,
-      'semi-luxury': 1.5,
-      'luxury': 2.0,
-      'super-luxury': 2.5
+      'semi-luxury': 1.3,
+      'luxury': 1.6,
+      'super-luxury': 2.0
     };
     
     const multiplier = categoryMultipliers[bus?.category] || 1.0;
-    const calculatedFare = Math.ceil((baseFare + (sections * sectionFare)) * multiplier);
+    const calculatedFare = Math.ceil((baseFare + (sectionsCount * sectionFare)) * multiplier);
     
     setFare(calculatedFare);
   };
@@ -123,18 +132,36 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       return;
     }
 
+    const fromSection = parseInt(sectionNumber);
+    const toStopSection = stops[selectedToStopIndex]?.sectionNumber || selectedToStopIndex;
+
+    // Enhanced validation
+    if (isNaN(fromSection) || fromSection < 0) {
+      Alert.alert('Error', 'Please enter a valid section number (0 or greater)');
+      return;
+    }
+
+    if (fromSection >= toStopSection) {
+      Alert.alert(
+        'Invalid Selection', 
+        `From section (${fromSection}) must be less than destination section (${toStopSection}).\n\nPlease select a different starting section or destination.`
+      );
+      return;
+    }
+
     if (selectedFromStopIndex >= selectedToStopIndex) {
       Alert.alert('Error', 'Destination stop must be after departure stop');
       return;
     }
 
+    const sectionsCount = toStopSection - fromSection;
     const directionText = direction === 'forward' 
       ? `${route.startPoint} → ${route.endPoint}` 
       : `${route.endPoint} → ${route.startPoint}`;
 
     Alert.alert(
       'Issue Ticket',
-      `Issue ticket for:\nDirection: ${directionText}\nFrom: ${stops[selectedFromStopIndex].name}\nTo: ${stops[selectedToStopIndex].name}\nSection: ${sectionNumber}\nFare: ₹${fare}`,
+      `Issue ticket for:\nDirection: ${directionText}\nFrom: Section ${fromSection} (${stops[selectedFromStopIndex].name})\nTo: Section ${toStopSection} (${stops[selectedToStopIndex].name})\nSections: ${sectionsCount}\nFare: ₹${fare}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Issue', onPress: confirmIssueTicket }
@@ -146,25 +173,28 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     try {
       setIssuingTicket(true);
       
+      const fromSection = parseInt(sectionNumber);
+      const toStopSection = stops[selectedToStopIndex]?.sectionNumber || selectedToStopIndex;
+      
       const ticketData = {
         routeId: route._id,
-        fromStopId: stops[selectedFromStopIndex]._id,
-        toStopId: stops[selectedToStopIndex]._id,
-        sectionNumber: parseInt(sectionNumber),
+        fromSectionNumber: fromSection,
+        toSectionNumber: toStopSection,
+        busNumber: bus.busNumber,
         fare: fare,
         passengerCount: 1,
-        category: route.category,
-        direction: direction
+        direction: direction,
+        paymentMethod: 'cash'
       };
       
       try {
         // Try to issue ticket via API
-        const response = await ticketsAPI.create(ticketData);
+        const response = await ticketsAPI.generate(ticketData);
         
         if (response.data && response.data.success) {
           Alert.alert(
             'Ticket Issued Successfully!',
-            `Ticket ID: ${response.data.ticket.ticketNumber}\nFare: ₹${fare}`,
+            `Ticket ID: ${response.data.ticket.ticketNumber}\nFrom: Section ${fromSection}\nTo: Section ${toStopSection}\nSections: ${toStopSection - fromSection}\nFare: ₹${fare}`,
             [
               { text: 'Issue Another', onPress: resetForm },
               { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -181,7 +211,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       
       Alert.alert(
         'Ticket Issued Successfully!',
-        `Ticket ID: TKT${Date.now()}\nFare: ₹${fare}\n\nNote: This is a demo ticket.`,
+        `Ticket ID: TKT${Date.now()}\nFrom: Section ${fromSection}\nTo: Section ${toStopSection}\nSections: ${toStopSection - fromSection}\nFare: ₹${fare}\n\nNote: This is a demo ticket.`,
         [
           { text: 'Issue Another', onPress: resetForm },
           { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -256,7 +286,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Stop Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Stops</Text>
+          <Text style={styles.sectionTitle}>Select St5ops</Text>
           
           <View style={styles.stopSelectionContainer}>
             <View style={styles.stopTypeSelector}>
@@ -348,8 +378,16 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
             From: {stops[selectedFromStopIndex]?.name} → To: {stops[selectedToStopIndex]?.name}
           </Text>
           <Text style={styles.fareBreakdown}>
-            Category: {bus?.category?.toUpperCase()} • Sections: {Math.abs(selectedToStopIndex - selectedFromStopIndex)}
+            {sectionNumber && stops[selectedToStopIndex] ? 
+              `From Section: ${sectionNumber} → To Section: ${stops[selectedToStopIndex]?.sectionNumber || selectedToStopIndex} • Sections: ${(stops[selectedToStopIndex]?.sectionNumber || selectedToStopIndex) - parseInt(sectionNumber || 0)}` :
+              `Category: ${bus?.category?.toUpperCase()}`
+            }
           </Text>
+          {sectionNumber && parseInt(sectionNumber) >= (stops[selectedToStopIndex]?.sectionNumber || selectedToStopIndex) && (
+            <Text style={styles.errorText}>
+              ⚠️ Invalid: From section must be less than destination section
+            </Text>
+          )}
         </View>
 
         {/* Issue Button */}
@@ -551,6 +589,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontStyle: 'italic',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#f44336',
+    fontWeight: '600',
+    marginTop: 5,
   },
   issueButton: {
     backgroundColor: '#4CAF50',

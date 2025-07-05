@@ -75,122 +75,93 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
 
   const handleSectionNumberChange = async () => {
     const enteredSection = parseInt(sectionNumber);
-    if (!enteredSection || enteredSection <= 0 || stops.length === 0) {
+    if (!enteredSection || enteredSection < 0 || stops.length === 0) {
       setFare(0);
       return;
     }
 
     // Find the stop with the entered section number
-    const targetStopIndex = stops.findIndex(stop => 
-      (stop.displaySectionNumber === enteredSection) || 
-      (stop.sectionNumber === enteredSection)
-    );
+    const targetStopIndex = stops.findIndex(stop => {
+      const currentSection = stop.displaySectionNumber || stop.sectionNumber;
+      return currentSection === enteredSection;
+    });
 
     if (targetStopIndex === -1) {
-      Alert.alert('Invalid Section', `Section ${enteredSection} not found on this route.`);
+      Alert.alert('Error', `Section ${enteredSection} not found on this route.`);
       setFare(0);
       return;
     }
 
-    // Auto-select the target stop as "To" stop (can be higher or lower than "From")
+    // VALIDATION: Prevent backward travel
+    const fromStop = stops[selectedFromStopIndex];
+    const fromSection = fromStop.displaySectionNumber || fromStop.sectionNumber;
+    if (fromSection >= enteredSection) {
+      Alert.alert(
+        'Invalid Destination',
+        `You cannot travel backward. The destination section (${enteredSection}) must be after the current section (${fromSection}).`,
+        [{ text: 'OK' }]
+      );
+      setSectionNumber(''); // Clear invalid input
+      setFare(0);
+      return;
+    }
+
+    // Auto-select the target stop as "To" stop
     setSelectedToStopIndex(targetStopIndex);
 
-    // Calculate fare based on absolute difference between sections
-    await calculateFareFromStops();
+    // Calculate fare directly using the backend API
+    await calculateFare(fromSection, enteredSection);
   };
 
-  const calculateFareFromStops = async () => {
+  const calculateFare = async (fromSection, toSection) => {
     try {
       setCalculatingFare(true);
       
-      const fromStop = stops[selectedFromStopIndex];
-      const toStop = stops[selectedToStopIndex];
-      
-      if (!fromStop || !toStop) {
+      console.log(`Calculating fare via API:`, {
+        routeId: route._id,
+        fromSection,
+        toSection,
+        busCategory: bus.category || 'normal'
+      });
+
+      const response = await faresAPI.calculate(
+        route._id, 
+        fromSection, 
+        toSection, 
+        bus.category || 'normal'
+      );
+
+      console.log('Backend response for fare calculation:', response.data);
+
+      if (response.data && (response.data.fare !== undefined || response.data.calculatedFare !== undefined)) {
+        const fareAmount = response.data.fare || response.data.calculatedFare;
+        console.log(`Backend fare calculation successful: From Section ${fromSection} to Section ${toSection} = Rs.${fareAmount}`);
+        setFare(fareAmount);
+      } else {
+        Alert.alert('Fare Not Found', 'Could not calculate the fare. Please check the sections.');
         setFare(0);
-        return;
       }
-
-      // Calculate section count
-      const fromSection = fromStop.displaySectionNumber || fromStop.sectionNumber;
-      const toSection = toStop.displaySectionNumber || toStop.sectionNumber;
-      const sectionCount = Math.abs(toSection - fromSection);
-
-      // Try backend API for section-count-based fare calculation
-      try {
-        const response = await faresAPI.calculate(
-          route._id, 
-          fromSection, 
-          toSection, 
-          bus.category || 'normal'
-        );
-
-        if (response.data && (response.data.fare !== undefined || response.data.calculatedFare !== undefined)) {
-          const fareAmount = response.data.fare || response.data.calculatedFare;
-          console.log(`Section-based fare: From Section ${fromSection} to Section ${toSection} = ${sectionCount} sections = Rs.${fareAmount}`);
-          setFare(fareAmount);
-          return;
-        }
-      } catch (apiError) {
-        console.log('Backend fare calculation failed:', apiError.message);
-      }
-
-      // Fallback: Check if stops have fare data from RouteSection, then use section-count-based calculation
-      const getFareBySection = (sections, busCategory, fromStopData, toStopData) => {
-        // Handle 0 sections (same section)
-        if (sections === 0) {
-          return 0;
-        }
-
-        // If stops have fare data from RouteSection, use that (more accurate)
-        if (fromStopData && toStopData && fromStopData.fare !== undefined && toStopData.fare !== undefined) {
-          const routeSectionFare = Math.abs(toStopData.fare - fromStopData.fare);
-          console.log(`Using RouteSection fare data: From ${fromStopData.fare}, To ${toStopData.fare}, Calculated: ${routeSectionFare}`);
-          return routeSectionFare;
-        }
-
-        // Fallback to fare table
-        const baseFareTable = {
-          1: 12, 2: 17, 3: 22, 4: 27, 5: 32, 6: 37, 7: 42, 8: 47, 9: 52, 10: 57,
-          11: 62, 12: 67, 13: 72, 14: 77, 15: 82, 16: 87, 17: 92, 18: 97, 19: 102, 20: 107,
-          21: 112, 22: 117, 23: 127, 24: 189, 25: 194, 26: 199, 27: 204, 28: 209, 29: 214, 30: 219,
-          31: 224, 32: 229, 33: 234, 34: 239, 35: 244, 36: 249, 37: 254, 38: 259, 39: 264, 40: 269
-        };
-
-        let fare = baseFareTable[sections] || (sections * 5 + 7); // Default calculation if not in table
-
-        // Apply category multipliers only for fallback table
-        switch (busCategory) {
-          case 'semi-luxury':
-            fare = Math.round(fare * 1.2);
-            break;
-          case 'luxury':
-            fare = Math.round(fare * 1.5);
-            break;
-          case 'super-luxury':
-            fare = Math.round(fare * 2.0);
-            break;
-          default:
-            break;
-        }
-
-        console.log(`Using fallback fare table: ${sections} sections = Rs.${fare}`);
-        return fare;
-      };
-
-      const calculatedFare = getFareBySection(sectionCount, bus.category || 'normal', fromStop, toStop);
-      console.log(`Fallback section-based fare: ${sectionCount} sections = Rs.${calculatedFare}`);
-      setFare(calculatedFare);
     } catch (error) {
-      console.error('Fare calculation error:', error);
-      // Final fallback
-      const sectionCount = Math.abs(selectedToStopIndex - selectedFromStopIndex);
-      const baseFare = 25 + (sectionCount * 5);
-      setFare(baseFare);
+      const errorMessage = error.response?.data?.message || 'An error occurred while calculating the fare.';
+      console.error('Fare calculation API error:', errorMessage, error.response?.data);
+      Alert.alert('Fare Calculation Error', errorMessage);
+      setFare(0);
     } finally {
       setCalculatingFare(false);
     }
   };
+
+  const handleFromStopChange = () => {
+    // Recalculate fare if a destination section is already entered
+    if (sectionNumber) {
+      handleSectionNumberChange();
+    }
+  };
+
+  // Add this useEffect to recalculate fare when the 'From' stop changes
+  useEffect(() => {
+    handleFromStopChange();
+  }, [selectedFromStopIndex]);
 
   const moveSelection = (direction) => {
     if (selectingStop === 'from') {
