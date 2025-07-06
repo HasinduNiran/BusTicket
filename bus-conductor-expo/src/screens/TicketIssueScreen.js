@@ -355,6 +355,10 @@ Balance: Rs.${balance}`;
     }
   };
 
+  const handlePrint = () => {
+    handleIssueTicket();
+  };
+
   const resetForm = () => {
     setSectionNumber('');
     setSelectedFromStopIndex(0);
@@ -419,6 +423,15 @@ Balance: Rs.${balance}`;
                 : `${route.endPoint} → ${route.startPoint}`}
             </Text>
           )}
+        </View>
+        <View style={styles.headerRightActions}>
+          <View style={styles.headerFareContainer}>
+            <Text style={styles.headerFareLabel}>TOTAL FARE</Text>
+            <Text style={styles.headerFareAmount}>Rs.{fare}</Text>
+          </View>
+          <TouchableOpacity style={styles.printButton} onPress={handlePrint}>
+            <Text style={styles.printButtonText}>Print</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -654,6 +667,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between', // Align items with space between
   },
   backButton: {
     marginRight: 15,
@@ -665,6 +679,43 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
+  },
+  headerRightActions: {
+    alignItems: 'flex-end',
+  },
+  headerFareContainer: {
+    backgroundColor: 'rgba(219, 212, 212, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    marginLeft: 10, // Add some margin to the left
+    marginBottom: 5, // Add margin below the fare container
+  },
+  headerFareLabel: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  headerFareAmount: {
+    color: 'yellow', // Changed to light red for better visibility on blue
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  printButton: {
+    backgroundColor: '#FF9800', // Orange color for the print button
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 5,
+    alignItems: 'center',
+  },
+  printButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   title: {
     fontSize: 20,
@@ -686,7 +737,7 @@ const styles = StyleSheet.create({
   },
   directionInfo: {
     fontSize: 14,
-    color: '#4CAF50',
+    color: 'red', // Changed from '#4CAF50' to red
     marginTop: 2,
     fontWeight: 'bold',
     backgroundColor: 'rgba(255,255,255,0.1)',
