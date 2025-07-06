@@ -239,7 +239,9 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     const fromSection = fromStop.sectionNumber;
     const toSection = toStop.sectionNumber;
 
-    let ticketSummary = `Direction: ${directionText}
+    let ticketSummary = `Bus: ${bus.busNumber} (${bus.category})
+Route: ${route.routeNumber} - ${route.routeName}
+Direction: ${directionText}
 From: ${fromStop.stopName}
 To: ${toStop.stopName}
 `;
