@@ -27,6 +27,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   const [calculatingFare, setCalculatingFare] = useState(false);
   const [fullTickets, setFullTickets] = useState('1');
   const [halfTickets, setHalfTickets] = useState('0');
+  const [quarterTickets, setQuarterTickets] = useState('0');
   const [paidAmount, setPaidAmount] = useState('');
   const sectionInputTimeout = React.useRef(null);
 
@@ -57,7 +58,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       // If the section number is cleared, reset the fare.
       setFare(0);
     }
-  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction, fullTickets, halfTickets]); // Rerun when these dependencies change
+  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction, fullTickets, halfTickets, quarterTickets]); // Rerun when these dependencies change
 
   const handleSectionNumberChange = (text) => {
     setSectionNumber(text);
@@ -197,8 +198,9 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         const baseFare = response.data.fare || response.data.calculatedFare;
         const numFull = parseInt(fullTickets, 10) || 0;
         const numHalf = parseInt(halfTickets, 10) || 0;
+        const numQuarter = parseInt(quarterTickets, 10) || 0;
         
-        const totalFare = (baseFare * numFull) + ((baseFare / 2) * numHalf);
+        const totalFare = (baseFare * numFull) + (Math.ceil(baseFare / 2) * numHalf) + (Math.ceil(baseFare / 4) * numQuarter);
         setFare(totalFare);
       } else {
         setFare(0);
@@ -221,8 +223,9 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
 
     const numFull = parseInt(fullTickets, 10) || 0;
     const numHalf = parseInt(halfTickets, 10) || 0;
+    const numQuarter = parseInt(quarterTickets, 10) || 0;
 
-    if (numFull === 0 && numHalf === 0) {
+    if (numFull === 0 && numHalf === 0 && numQuarter === 0) {
       Alert.alert('Error', 'Please enter the number of tickets.');
       return;
     }
@@ -245,8 +248,10 @@ To: ${toStop.stopName}
 `;
     }
     if (numHalf > 0) {
-      ticketSummary += `Half Tickets: ${numHalf}
-`;
+      ticketSummary += `Half Tickets: ${numHalf}\n`;
+    }
+    if (numQuarter > 0) {
+      ticketSummary += `1/4 Tickets: ${numQuarter}\n`;
     }
     ticketSummary += `Total Fare: Rs.${fare}`;
 
@@ -278,6 +283,7 @@ Balance: Rs.${balance}`;
       
       const numFull = parseInt(fullTickets, 10) || 0;
       const numHalf = parseInt(halfTickets, 10) || 0;
+      const numQuarter = parseInt(quarterTickets, 10) || 0;
 
       const ticketData = {
         routeId: route._id,
@@ -285,9 +291,10 @@ Balance: Rs.${balance}`;
         toSectionNumber: toStop.sectionNumber,
         busNumber: bus.busNumber,
         fare: fare,
-        passengerCount: numFull + numHalf,
+        passengerCount: numFull + numHalf + numQuarter,
         fullTicketCount: numFull,
         halfTicketCount: numHalf,
+        quarterTicketCount: numQuarter,
         paymentMethod: 'cash',
         direction: direction
       };
@@ -355,6 +362,7 @@ Balance: Rs.${balance}`;
     setCalculatingFare(false);
     setFullTickets('1');
     setHalfTickets('0');
+    setQuarterTickets('0');
     setPaidAmount('');
   };
 
@@ -521,6 +529,17 @@ Balance: Rs.${balance}`;
                 style={styles.ticketCountInput}
                 value={halfTickets}
                 onChangeText={(text) => setHalfTickets(text.replace(/[^0-9]/g, ''))}
+                placeholder="e.g., 0"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+            <View style={styles.ticketCountInputGroup}>
+              <Text style={styles.ticketCountLabel}>1/4 Tickets</Text>
+              <TextInput
+                style={styles.ticketCountInput}
+                value={quarterTickets}
+                onChangeText={(text) => setQuarterTickets(text.replace(/[^0-9]/g, ''))}
                 placeholder="e.g., 0"
                 keyboardType="numeric"
                 maxLength={2}
