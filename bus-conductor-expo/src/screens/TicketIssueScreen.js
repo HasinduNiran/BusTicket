@@ -25,6 +25,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   const [fare, setFare] = useState(0);
   const [issuingTicket, setIssuingTicket] = useState(false);
   const [calculatingFare, setCalculatingFare] = useState(false);
+  const [fullTickets, setFullTickets] = useState('1');
+  const [halfTickets, setHalfTickets] = useState('0');
 
   useEffect(() => {
     loadStops();
@@ -53,7 +55,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       // If the section number is cleared, reset the fare.
       setFare(0);
     }
-  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction]); // Rerun when these dependencies change
+  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction, fullTickets, halfTickets]); // Rerun when these dependencies change
 
   const handleSectionNumberChange = (text) => {
     setSectionNumber(text);
@@ -72,10 +74,20 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         const destinationStopName = destinationStop.stopName;
         console.log(`Section Number: ${destinationSection}, Destination: ${destinationStopName}`);
       } else {
-        setSelectedToStopIndex(selectedFromStopIndex);
+        // Don't show alert for partial input, only if they've finished typing and it's invalid
+        // This logic is tricky, for now, we just prevent the update.
+        // A better UX might be to wait for a blur event.
+        // Alert.alert(
+        //   'Invalid Section', 
+        //   `The section number "${destinationSection}" is not valid for this route.`,
+        //   [{ text: 'OK' }]
+        // );
+        // setSelectedToStopIndex(previousToStopIndex);
       }
     } else {
-      setSelectedToStopIndex(selectedFromStopIndex);
+      if (text) { // Only reset if there is some text, to avoid resetting on initial render
+          setSelectedToStopIndex(previousToStopIndex);
+      }
     }
   };
 
@@ -168,8 +180,12 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       );
 
       if (response.data && (response.data.fare !== undefined || response.data.calculatedFare !== undefined)) {
-        const fareAmount = response.data.fare || response.data.calculatedFare;
-        setFare(fareAmount);
+        const baseFare = response.data.fare || response.data.calculatedFare;
+        const numFull = parseInt(fullTickets, 10) || 0;
+        const numHalf = parseInt(halfTickets, 10) || 0;
+        
+        const totalFare = (baseFare * numFull) + ((baseFare / 2) * numHalf);
+        setFare(totalFare);
       } else {
         setFare(0);
       }
@@ -189,6 +205,14 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       return;
     }
 
+    const numFull = parseInt(fullTickets, 10) || 0;
+    const numHalf = parseInt(halfTickets, 10) || 0;
+
+    if (numFull === 0 && numHalf === 0) {
+      Alert.alert('Error', 'Please enter the number of tickets.');
+      return;
+    }
+
     const directionText = direction === 'forward' 
       ? `${route.startPoint} → ${route.endPoint}` 
       : `${route.endPoint} → ${route.startPoint}`;
@@ -198,9 +222,24 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     const fromSection = fromStop.sectionNumber;
     const toSection = toStop.sectionNumber;
 
+    let ticketSummary = `Direction: ${directionText}
+From: ${fromStop.stopName}
+To: ${toStop.stopName}
+`;
+    if (numFull > 0) {
+      ticketSummary += `Full Tickets: ${numFull}
+`;
+    }
+    if (numHalf > 0) {
+      ticketSummary += `Half Tickets: ${numHalf}
+`;
+    }
+    ticketSummary += `Total Fare: Rs.${fare}`;
+
+
     Alert.alert(
       'Issue Ticket',
-      `Issue ticket for:\nDirection: ${directionText}\nFrom: ${fromStop.stopName} \nTo: ${toStop.stopName} \nFare: Rs.${fare}`,
+      ticketSummary,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Issue', onPress: confirmIssueTicket }
@@ -215,13 +254,18 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       const fromStop = stops[selectedFromStopIndex];
       const toStop = stops[selectedToStopIndex];
       
+      const numFull = parseInt(fullTickets, 10) || 0;
+      const numHalf = parseInt(halfTickets, 10) || 0;
+
       const ticketData = {
         routeId: route._id,
         fromSectionNumber: fromStop.sectionNumber,
         toSectionNumber: toStop.sectionNumber,
         busNumber: bus.busNumber,
         fare: fare,
-        passengerCount: 1,
+        passengerCount: numFull + numHalf,
+        fullTicketCount: numFull,
+        halfTicketCount: numHalf,
         paymentMethod: 'cash',
         direction: direction
       };
@@ -233,7 +277,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         if (response.data && response.data.success) {
           Alert.alert(
             'Ticket Issued Successfully!',
-            `Ticket ID: ${response.data.ticket.ticketNumber}\nFare: Rs.${fare}`,
+            `Ticket ID: ${response.data.ticket.ticketNumber}
+Fare: Rs.${fare}`,
             [
               { text: 'Issue Another', onPress: resetForm },
               { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -250,7 +295,10 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       
       Alert.alert(
         'Ticket Issued Successfully!',
-        `Ticket ID: TKT${Date.now()}\nFare: Rs.${fare}\n\nNote: This is a demo ticket.`,
+        `Ticket ID: TKT${Date.now()}
+Fare: Rs.${fare}
+
+Note: This is a demo ticket.`,
         [
           { text: 'Issue Another', onPress: resetForm },
           { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -272,6 +320,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     setSelectingStop('from');
     setFare(0);
     setCalculatingFare(false);
+    setFullTickets('1');
+    setHalfTickets('0');
   };
 
   const moveSelection = (move) => {
@@ -414,6 +464,35 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
             keyboardType="numeric"
             maxLength={3}
           />
+        </View>
+
+        {/* Ticket Count Input */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Number of Tickets</Text>
+          <View style={styles.ticketCountContainer}>
+            <View style={styles.ticketCountInputGroup}>
+              <Text style={styles.ticketCountLabel}>Full Tickets</Text>
+              <TextInput
+                style={styles.ticketCountInput}
+                value={fullTickets}
+                onChangeText={(text) => setFullTickets(text.replace(/[^0-9]/g, ''))}
+                placeholder="e.g., 1"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+            <View style={styles.ticketCountInputGroup}>
+              <Text style={styles.ticketCountLabel}>Half Tickets</Text>
+              <TextInput
+                style={styles.ticketCountInput}
+                value={halfTickets}
+                onChangeText={(text) => setHalfTickets(text.replace(/[^0-9]/g, ''))}
+                placeholder="e.g., 0"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+          </View>
         </View>
 
         {/* Fare Display */}
@@ -655,6 +734,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fafafa',
     textAlign: 'center',
+  },
+  ticketCountContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  ticketCountInputGroup: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  ticketCountLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  ticketCountInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: '#fafafa',
+    textAlign: 'center',
+    width: '80%',
   },
   fareContainer: {
     flexDirection: 'row',

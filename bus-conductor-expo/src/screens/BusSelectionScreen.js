@@ -12,13 +12,18 @@ import { StatusBar } from 'expo-status-bar';
 import { busesAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BusSelectionScreen = ({ navigation }) => {
+const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [conductorName, setConductorName] = useState('');
 
   useEffect(() => {
-    loadBuses();
+    const init = async () => {
+      const name = await AsyncStorage.getItem('name');
+      setConductorName(name || 'Conductor');
+      loadBuses();
+    };
+    init();
   }, []);
 
   const loadBuses = async () => {
@@ -141,7 +146,16 @@ const BusSelectionScreen = ({ navigation }) => {
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Select', 
-          onPress: () => onBusSelected(bus)
+          onPress: () => {
+            if (!bus.routeId) {
+              Alert.alert(
+                'Error',
+                'This bus does not have a route assigned. Please contact an administrator.'
+              );
+              return;
+            }
+            onBusSelected(bus); // Use the prop here
+          }
         }
       ]
     );
@@ -150,7 +164,7 @@ const BusSelectionScreen = ({ navigation }) => {
   const handleLogout = async () => {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('name');
-    navigation.navigate('Login');
+    onLogout(); // Use the prop here
   };
 
   const getCategoryColor = (category) => {
