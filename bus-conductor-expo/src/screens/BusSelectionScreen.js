@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { busesAPI } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BusSelectionScreen = ({ user, onBusSelected, onBack, onLogout }) => {
+const BusSelectionScreen = ({ navigation }) => {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [conductorName, setConductorName] = useState('');
 
   useEffect(() => {
     loadBuses();
@@ -145,6 +147,12 @@ const BusSelectionScreen = ({ user, onBusSelected, onBack, onLogout }) => {
     );
   };
 
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('name');
+    navigation.navigate('Login');
+  };
+
   const getCategoryColor = (category) => {
     switch (category) {
       case 'Normal': return '#4CAF50';
@@ -175,20 +183,8 @@ const BusSelectionScreen = ({ user, onBusSelected, onBack, onLogout }) => {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>← Logout</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>Select Your Bus</Text>
-          {user && (
-            <Text style={styles.subtitle}>Welcome, {user.username}</Text>
-          )}
-        </View>
-        {onLogout && (
-          <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.title}>Select a Bus</Text>
+        <Text style={styles.conductorName}>Welcome, {conductorName}</Text>
       </View>
 
       {/* Buses List */}
@@ -237,6 +233,11 @@ const BusSelectionScreen = ({ user, onBusSelected, onBack, onLogout }) => {
           </View>
         )}
       </ScrollView>
+
+      {/* Logout Button */}
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -258,47 +259,18 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   header: {
-    backgroundColor: '#2196F3',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  backButton: {
-    marginRight: 15,
-  },
-  backButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerContent: {
-    flex: 1,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
+    textAlign: 'center',
   },
-  subtitle: {
+  conductorName: {
     fontSize: 16,
-    color: '#ffffff',
-    opacity: 0.9,
-  },
-  logoutButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  logoutButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
+    textAlign: 'center',
+    color: '#666',
+    marginTop: 5,
   },
   scrollView: {
     flex: 1,
@@ -377,6 +349,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  logoutButton: {
+    backgroundColor: '#f44336',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

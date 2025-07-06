@@ -19,6 +19,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   const [loading, setLoading] = useState(true);
   const [selectedFromStopIndex, setSelectedFromStopIndex] = useState(0);
   const [selectedToStopIndex, setSelectedToStopIndex] = useState(0);
+  const [previousToStopIndex, setPreviousToStopIndex] = useState(0);
   const [sectionNumber, setSectionNumber] = useState('');
   const [selectingStop, setSelectingStop] = useState('from'); // 'from' or 'to'
   const [fare, setFare] = useState(0);
@@ -30,29 +31,83 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   }, [direction]); // Reload stops when direction changes
 
   useEffect(() => {
-    if (sectionNumber && stops.length > 0) {
-      handleSectionNumberChange();
+    // This effect triggers the fare calculation when the user has entered a valid section number.
+    if (sectionNumber && !isNaN(parseInt(sectionNumber, 10)) && stops.length > 0) {
+      const fromStop = stops[selectedFromStopIndex];
+      const toStop = stops[selectedToStopIndex];
+
+      if (fromStop && toStop) {
+        const fromSection = fromStop.sectionNumber;
+        const toSection = toStop.sectionNumber;
+
+        // Only calculate if the entered section number matches the selected 'To' stop's section
+        if (parseInt(sectionNumber, 10) === toSection) {
+            calculateFare(fromSection, toSection);
+        } else {
+            // This case can happen if the user types a number but a stop hasn't been found yet.
+            // We can clear the fare to avoid showing a stale value.
+            setFare(0);
+        }
+      }
     } else {
+      // If the section number is cleared, reset the fare.
       setFare(0);
     }
-  }, [sectionNumber, selectedFromStopIndex, stops]);
+  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction]); // Rerun when these dependencies change
+
+  const handleSectionNumberChange = (text) => {
+    setSectionNumber(text);
+
+    if (text && !isNaN(parseInt(text, 10)) && stops.length > 0) {
+      const destinationSection = parseInt(text, 10);
+      
+      const toStopIndex = stops.findIndex(
+        (s) => s.sectionNumber === destinationSection
+      );
+
+      if (toStopIndex !== -1) {
+        setPreviousToStopIndex(selectedToStopIndex); // Store current index before updating
+        setSelectedToStopIndex(toStopIndex);
+        const destinationStop = stops[toStopIndex];
+        const destinationStopName = destinationStop.stopName;
+        console.log(`Section Number: ${destinationSection}, Destination: ${destinationStopName}`);
+      } else {
+        setSelectedToStopIndex(selectedFromStopIndex);
+      }
+    } else {
+      setSelectedToStopIndex(selectedFromStopIndex);
+    }
+  };
 
   const loadStops = async () => {
     try {
       setLoading(true);
       
-      // Load real data from API with bus category
       const busCategory = bus.category || 'normal';
-      const response = await stopsAPI.getByRoute(route._id, direction, busCategory);
+      // Always fetch the canonical route (e.g., 'return' direction which has 0-based sections)
+      const response = await stopsAPI.getByRoute(route._id, 'return', busCategory);
+      
       if (response.data && response.data.stops && response.data.stops.length > 0) {
-        console.log(`Loaded ${response.data.stops.length} stops for direction: ${direction}, category: ${busCategory}`);
-        console.log('Fare data available:', response.data.hasFareData);
-        setStops(response.data.stops);
+        let processedStops = response.data.stops;
+
+        // The API for 'return' gives us the canonical order (e.g., 0 to N)
+        // For the 'forward' direction in the UI, we want to display them in reverse order (N to 0)
+        if (direction === 'forward') {
+          processedStops = [...processedStops].reverse();
+        }
+
+        setStops(processedStops);
+
+        console.log(`--- Processed Stops for ${direction} direction ---`);
+        processedStops.forEach(stop => {
+          console.log(`Section: ${stop.sectionNumber}, Stop: ${stop.stopName}`);
+        });
+        console.log('------------------------------------');
+
       } else {
-        // If no stops found for this route
         Alert.alert(
           'No Stops Found', 
-          `No stops are configured for this route in ${direction} direction. Please contact the administrator.`,
+          `No stops are configured for this route. Please contact the administrator.`,
           [
             { text: 'Go Back', onPress: onBack }
           ]
@@ -73,57 +128,38 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     }
   };
 
-  const handleSectionNumberChange = async () => {
-    const enteredSection = parseInt(sectionNumber);
-    if (!enteredSection || enteredSection < 0 || stops.length === 0) {
-      setFare(0);
-      return;
-    }
+  const calculateFare = async (fromSection, toSection) => {
+    // VALIDATION: Prevent backward travel based on direction
+    const isForward = direction === 'forward';
 
-    // Find the stop with the entered section number
-    const targetStopIndex = stops.findIndex(stop => {
-      const currentSection = stop.displaySectionNumber || stop.sectionNumber;
-      return currentSection === enteredSection;
-    });
-
-    if (targetStopIndex === -1) {
-      Alert.alert('Error', `Section ${enteredSection} not found on this route.`);
-      setFare(0);
-      return;
-    }
-
-    // VALIDATION: Prevent backward travel
-    const fromStop = stops[selectedFromStopIndex];
-    const fromSection = fromStop.displaySectionNumber || fromStop.sectionNumber;
-    if (fromSection >= enteredSection) {
+    // In our canonical model (0 to N), forward means from < to, return means from > to.
+    if (isForward && fromSection >= toSection) {
       Alert.alert(
         'Invalid Destination',
-        `You cannot travel backward. The destination section (${enteredSection}) must be after the current section (${fromSection}).`,
+        `For the forward direction, the destination section (${toSection}) must be after the current section (${fromSection}).`,
         [{ text: 'OK' }]
       );
       setSectionNumber(''); // Clear invalid input
+      setSelectedToStopIndex(previousToStopIndex); // Revert to the last valid stop
       setFare(0);
       return;
     }
 
-    // Auto-select the target stop as "To" stop
-    setSelectedToStopIndex(targetStopIndex);
+    if (!isForward && fromSection <= toSection) {
+      Alert.alert(
+        'Invalid Destination',
+        `For the return direction, the destination section (${toSection}) must be before the current section (${fromSection}).`,
+        [{ text: 'OK' }]
+      );
+      setSectionNumber(''); // Clear invalid input
+      setSelectedToStopIndex(previousToStopIndex); // Revert to the last valid stop
+      setFare(0);
+      return;
+    }
 
-    // Calculate fare directly using the backend API
-    await calculateFare(fromSection, enteredSection);
-  };
-
-  const calculateFare = async (fromSection, toSection) => {
     try {
       setCalculatingFare(true);
       
-      console.log(`Calculating fare via API:`, {
-        routeId: route._id,
-        fromSection,
-        toSection,
-        busCategory: bus.category || 'normal'
-      });
-
       const response = await faresAPI.calculate(
         route._id, 
         fromSection, 
@@ -131,14 +167,10 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         bus.category || 'normal'
       );
 
-      console.log('Backend response for fare calculation:', response.data);
-
       if (response.data && (response.data.fare !== undefined || response.data.calculatedFare !== undefined)) {
         const fareAmount = response.data.fare || response.data.calculatedFare;
-        console.log(`Backend fare calculation successful: From Section ${fromSection} to Section ${toSection} = Rs.${fareAmount}`);
         setFare(fareAmount);
       } else {
-        Alert.alert('Fare Not Found', 'Could not calculate the fare. Please check the sections.');
         setFare(0);
       }
     } catch (error) {
@@ -148,34 +180,6 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       setFare(0);
     } finally {
       setCalculatingFare(false);
-    }
-  };
-
-  const handleFromStopChange = () => {
-    // Recalculate fare if a destination section is already entered
-    if (sectionNumber) {
-      handleSectionNumberChange();
-    }
-  };
-
-  // Add this useEffect to recalculate fare when the 'From' stop changes
-  useEffect(() => {
-    handleFromStopChange();
-  }, [selectedFromStopIndex]);
-
-  const moveSelection = (direction) => {
-    if (selectingStop === 'from') {
-      if (direction === 'up' && selectedFromStopIndex > 0) {
-        setSelectedFromStopIndex(selectedFromStopIndex - 1);
-      } else if (direction === 'down' && selectedFromStopIndex < stops.length - 1) {
-        setSelectedFromStopIndex(selectedFromStopIndex + 1);
-      }
-    } else {
-      if (direction === 'up' && selectedToStopIndex > 0) {
-        setSelectedToStopIndex(selectedToStopIndex - 1);
-      } else if (direction === 'down' && selectedToStopIndex < stops.length - 1) {
-        setSelectedToStopIndex(selectedToStopIndex + 1);
-      }
     }
   };
 
@@ -191,13 +195,12 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
 
     const fromStop = stops[selectedFromStopIndex];
     const toStop = stops[selectedToStopIndex];
-    const fromSection = fromStop.displaySectionNumber || fromStop.sectionNumber;
-    const toSection = toStop.displaySectionNumber || toStop.sectionNumber;
-    const sectionCount = Math.abs(toSection - fromSection);
+    const fromSection = fromStop.sectionNumber;
+    const toSection = toStop.sectionNumber;
 
     Alert.alert(
       'Issue Ticket',
-      `Issue ticket for:\nDirection: ${directionText}\nFrom: ${stops[selectedFromStopIndex].stopName || stops[selectedFromStopIndex].name} (Section ${fromSection})\nTo: ${stops[selectedToStopIndex].stopName || stops[selectedToStopIndex].name} (Section ${toSection})\nSections traveled: ${sectionCount}\nFare: Rs.${fare}`,
+      `Issue ticket for:\nDirection: ${directionText}\nFrom: ${fromStop.stopName} \nTo: ${toStop.stopName} \nFare: Rs.${fare}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Issue', onPress: confirmIssueTicket }
@@ -214,8 +217,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       
       const ticketData = {
         routeId: route._id,
-        fromSectionNumber: fromStop.displaySectionNumber || fromStop.sectionNumber,
-        toSectionNumber: toStop.displaySectionNumber || toStop.sectionNumber,
+        fromSectionNumber: fromStop.sectionNumber,
+        toSectionNumber: toStop.sectionNumber,
         busNumber: bus.busNumber,
         fare: fare,
         passengerCount: 1,
@@ -269,6 +272,23 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     setSelectingStop('from');
     setFare(0);
     setCalculatingFare(false);
+  };
+
+  const moveSelection = (move) => {
+    const currentStopIndex = selectingStop === 'from' ? selectedFromStopIndex : selectedToStopIndex;
+    let nextIndex = currentStopIndex;
+
+    if (move === 'up') {
+      nextIndex = Math.max(0, currentStopIndex - 1);
+    } else if (move === 'down') {
+      nextIndex = Math.min(stops.length - 1, currentStopIndex + 1);
+    }
+
+    if (selectingStop === 'from') {
+      setSelectedFromStopIndex(nextIndex);
+    } else {
+      setSelectedToStopIndex(nextIndex);
+    }
   };
 
   if (loading) {
@@ -364,7 +384,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
                 styles.stopName,
                 selectingStop === 'from' && styles.activeStop
               ]}>
-                {stops[selectedFromStopIndex]?.stopName || stops[selectedFromStopIndex]?.name}
+                {stops[selectedFromStopIndex]?.stopName}
               </Text>
             </View>
             <Text style={styles.arrow}>↓</Text>
@@ -374,7 +394,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
                 styles.stopName,
                 selectingStop === 'to' && styles.activeStop
               ]}>
-                {stops[selectedToStopIndex]?.stopName || stops[selectedToStopIndex]?.name}
+                {stops[selectedToStopIndex]?.stopName}
               </Text>
             </View>
           </View>
@@ -389,7 +409,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
           <TextInput
             style={styles.sectionInput}
             value={sectionNumber}
-            onChangeText={setSectionNumber}
+            onChangeText={handleSectionNumberChange}
             placeholder="Enter destination section number"
             keyboardType="numeric"
             maxLength={3}
@@ -412,14 +432,14 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
           ) : fare > 0 && stops[selectedFromStopIndex] && stops[selectedToStopIndex] ? (
             <View>
               <Text style={styles.fareNote}>
-                From: {stops[selectedFromStopIndex]?.stopName} (Section {stops[selectedFromStopIndex]?.displaySectionNumber || stops[selectedFromStopIndex]?.sectionNumber})
+                From: {stops[selectedFromStopIndex]?.stopName} (Section {stops[selectedFromStopIndex]?.sectionNumber})
               </Text>
               <Text style={styles.fareNote}>
-                To: {stops[selectedToStopIndex]?.stopName} (Section {stops[selectedToStopIndex]?.displaySectionNumber || stops[selectedToStopIndex]?.sectionNumber})
+                To: {stops[selectedToStopIndex]?.stopName} (Section {stops[selectedToStopIndex]?.sectionNumber})
               </Text>
               {(() => {
-                const fromSection = stops[selectedFromStopIndex]?.displaySectionNumber || stops[selectedFromStopIndex]?.sectionNumber;
-                const toSection = stops[selectedToStopIndex]?.displaySectionNumber || stops[selectedToStopIndex]?.sectionNumber;
+                const fromSection = stops[selectedFromStopIndex]?.sectionNumber;
+                const toSection = stops[selectedToStopIndex]?.sectionNumber;
                 const sectionCount = Math.abs(toSection - fromSection);
                 return (
                   <Text style={styles.fareBreakdown}>
