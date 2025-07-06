@@ -27,6 +27,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   const [calculatingFare, setCalculatingFare] = useState(false);
   const [fullTickets, setFullTickets] = useState('1');
   const [halfTickets, setHalfTickets] = useState('0');
+  const [paidAmount, setPaidAmount] = useState('');
+  const sectionInputTimeout = React.useRef(null);
 
   useEffect(() => {
     loadStops();
@@ -60,33 +62,45 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   const handleSectionNumberChange = (text) => {
     setSectionNumber(text);
 
+    // Clear the previous timeout if it exists
+    if (sectionInputTimeout.current) {
+      clearTimeout(sectionInputTimeout.current);
+    }
+
     if (text && !isNaN(parseInt(text, 10)) && stops.length > 0) {
       const destinationSection = parseInt(text, 10);
-      
+
       const toStopIndex = stops.findIndex(
         (s) => s.sectionNumber === destinationSection
       );
 
       if (toStopIndex !== -1) {
-        setPreviousToStopIndex(selectedToStopIndex); // Store current index before updating
-        setSelectedToStopIndex(toStopIndex);
-        const destinationStop = stops[toStopIndex];
-        const destinationStopName = destinationStop.stopName;
-        console.log(`Section Number: ${destinationSection}, Destination: ${destinationStopName}`);
+        const fromStop = stops[selectedFromStopIndex];
+        const toStop = stops[toStopIndex];
+
+        if (fromStop && toStop) {
+          const fromSection = fromStop.sectionNumber;
+          const toSection = toStop.sectionNumber;
+          const isForward = direction === 'forward';
+
+          if ((isForward && fromSection >= toSection) || (!isForward && fromSection <= toSection)) {
+            // This is now handled by the calculateFare function, but we can prevent the state update here
+            // to avoid a flicker. The user will be alerted when the fare is calculated with the final number.
+            return;
+          }
+
+          setPreviousToStopIndex(selectedToStopIndex);
+          setSelectedToStopIndex(toStopIndex);
+        }
       } else {
-        // Don't show alert for partial input, only if they've finished typing and it's invalid
-        // This logic is tricky, for now, we just prevent the update.
-        // A better UX might be to wait for a blur event.
-        // Alert.alert(
-        //   'Invalid Section', 
-        //   `The section number "${destinationSection}" is not valid for this route.`,
-        //   [{ text: 'OK' }]
-        // );
-        // setSelectedToStopIndex(previousToStopIndex);
-      }
-    } else {
-      if (text) { // Only reset if there is some text, to avoid resetting on initial render
-          setSelectedToStopIndex(previousToStopIndex);
+        // Use a timeout to check if the user has stopped typing
+        sectionInputTimeout.current = setTimeout(() => {
+          Alert.alert(
+            'Invalid Section',
+            `The section number "${destinationSection}" is not valid for this route.`,
+            [{ text: 'OK' }]
+          );
+        }, 1000); // 1-second delay
       }
     }
   };
@@ -184,7 +198,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         const numFull = parseInt(fullTickets, 10) || 0;
         const numHalf = parseInt(halfTickets, 10) || 0;
         
-        const totalFare = (baseFare * numFull) + (Math.ceil(baseFare / 2) * numHalf);
+        const totalFare = (baseFare * numFull) + ((baseFare / 2) * numHalf);
         setFare(totalFare);
       } else {
         setFare(0);
@@ -236,6 +250,14 @@ To: ${toStop.stopName}
     }
     ticketSummary += `Total Fare: Rs.${fare}`;
 
+    const numPaidAmount = parseFloat(paidAmount) || 0;
+    if (numPaidAmount > 0 && numPaidAmount >= fare) {
+        const balance = numPaidAmount - fare;
+        ticketSummary += `
+Paid Amount: Rs.${numPaidAmount}
+Balance: Rs.${balance}`;
+    }
+
 
     Alert.alert(
       'Issue Ticket',
@@ -275,10 +297,16 @@ To: ${toStop.stopName}
         const response = await ticketsAPI.create(ticketData);
         
         if (response.data && response.data.success) {
+          let successMessage = `Ticket ID: ${response.data.ticket.ticketNumber}\nFare: Rs.${fare}`;
+          const numPaidAmount = parseFloat(paidAmount) || 0;
+          if (numPaidAmount > 0 && numPaidAmount >= fare) {
+            const balance = numPaidAmount - fare;
+            successMessage += `\nPaid: Rs.${numPaidAmount}\nBalance: Rs.${balance}`;
+          }
+
           Alert.alert(
             'Ticket Issued Successfully!',
-            `Ticket ID: ${response.data.ticket.ticketNumber}
-Fare: Rs.${fare}`,
+            successMessage,
             [
               { text: 'Issue Another', onPress: resetForm },
               { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -293,12 +321,17 @@ Fare: Rs.${fare}`,
       // Fallback to mock success
       await new Promise(resolve => setTimeout(resolve, 1500));
       
+      let alertMessage = `Ticket ID: TKT${Date.now()}\nFare: Rs.${fare}`;
+      const numPaidAmount = parseFloat(paidAmount) || 0;
+      if (numPaidAmount > 0 && numPaidAmount >= fare) {
+        const balance = numPaidAmount - fare;
+        alertMessage += `\nPaid: Rs.${numPaidAmount}\nBalance: Rs.${balance}`;
+      }
+      alertMessage += `\n\nNote: This is a demo ticket.`;
+
       Alert.alert(
         'Ticket Issued Successfully!',
-        `Ticket ID: TKT${Date.now()}
-Fare: Rs.${fare}
-
-Note: This is a demo ticket.`,
+        alertMessage,
         [
           { text: 'Issue Another', onPress: resetForm },
           { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -322,6 +355,7 @@ Note: This is a demo ticket.`,
     setCalculatingFare(false);
     setFullTickets('1');
     setHalfTickets('0');
+    setPaidAmount('');
   };
 
   const moveSelection = (move) => {
@@ -534,6 +568,29 @@ Note: This is a demo ticket.`,
             <Text style={styles.fareNote}>
               Enter destination section number to calculate fare
             </Text>
+          )}
+        </View>
+
+        {/* Payment Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Details (Optional)</Text>
+          <View style={styles.ticketCountInputGroup}>
+            <Text style={styles.ticketCountLabel}>Amount Paid</Text>
+            <TextInput
+              style={styles.ticketCountInput}
+              value={paidAmount}
+              onChangeText={(text) => setPaidAmount(text.replace(/[^0-9]/g, ''))}
+              placeholder="e.g., 500"
+              keyboardType="numeric"
+            />
+          </View>
+          {paidAmount && fare > 0 && parseFloat(paidAmount) >= fare && (
+            <View style={[styles.fareContainer, { marginTop: 15 }]}>
+              <Text style={styles.fareLabel}>Balance to Return:</Text>
+              <Text style={styles.fareAmount}>
+                Rs.{parseFloat(paidAmount) - fare}
+              </Text>
+            </View>
           )}
         </View>
 
