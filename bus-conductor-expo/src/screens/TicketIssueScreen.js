@@ -184,7 +184,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         const numFull = parseInt(fullTickets, 10) || 0;
         const numHalf = parseInt(halfTickets, 10) || 0;
         
-        const totalFare = (baseFare * numFull) + ((baseFare / 2) * numHalf);
+        const totalFare = (baseFare * numFull) + (Math.ceil(baseFare / 2) * numHalf);
         setFare(totalFare);
       } else {
         setFare(0);
