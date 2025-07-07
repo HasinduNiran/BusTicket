@@ -114,6 +114,74 @@ router.post('/generate', auth, conductorAuth, async (req, res) => {
   }
 });
 
+// Create a new ticket (from conductor app)
+router.post('/create', auth, conductorAuth, async (req, res) => {
+  try {
+    const {
+      routeId,
+      fromSectionNumber,
+      toSectionNumber,
+      busNumber,
+      fare,
+      passengerCount,
+      fullTicketCount,
+      halfTicketCount,
+      quarterTicketCount,
+      paymentMethod,
+      direction,
+    } = req.body;
+
+    // Basic validation
+    if (!routeId || !busNumber || fare === undefined) {
+      return res.status(400).json({ message: 'Missing required ticket data.' });
+    }
+
+    // Get stop details for the ticket
+    const fromStop = await Stop.findOne({ routeId, sectionNumber: fromSectionNumber });
+    const toStop = await Stop.findOne({ routeId, sectionNumber: toSectionNumber });
+
+    if (!fromStop || !toStop) {
+      return res.status(404).json({ message: 'From or To stop not found.' });
+    }
+
+    const ticket = new Ticket({
+      routeId,
+      fromStop: {
+        stopId: fromStop._id,
+        stopName: fromStop.stopName,
+        sectionNumber: fromStop.sectionNumber,
+      },
+      toStop: {
+        stopId: toStop._id,
+        stopName: toStop.stopName,
+        sectionNumber: toStop.sectionNumber,
+      },
+      busNumber,
+      fare,
+      passengerCount,
+      fullTicketCount,
+      halfTicketCount,
+      quarterTicketCount,
+      paymentMethod,
+      direction,
+      conductorId: req.user.userId, // Get conductor ID from auth middleware
+      status: 'issued',
+    });
+
+    await ticket.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Ticket created successfully',
+      ticket,
+    });
+
+  } catch (error) {
+    console.error('Create ticket error:', error);
+    res.status(500).json({ message: 'Server error while creating ticket' });
+  }
+});
+
 // Get conductor's tickets for today
 router.get('/my-tickets', auth, conductorAuth, async (req, res) => {
   try {

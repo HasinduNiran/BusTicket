@@ -106,6 +106,13 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Logout
+router.post('/logout', (req, res) => {
+  // For token-based authentication, the client is responsible for clearing the token.
+  // A server-side logout endpoint can be useful for analytics or if using a token blacklist.
+  res.status(200).json({ message: 'Logout successful' });
+});
+
 // Get current user
 router.get('/me', async (req, res) => {
   try {

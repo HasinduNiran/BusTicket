@@ -27,9 +27,6 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
   const [calculatingFare, setCalculatingFare] = useState(false);
   const [fullTickets, setFullTickets] = useState('1');
   const [halfTickets, setHalfTickets] = useState('0');
-  const [quarterTickets, setQuarterTickets] = useState('0');
-  const [paidAmount, setPaidAmount] = useState('');
-  const sectionInputTimeout = React.useRef(null);
 
   useEffect(() => {
     loadStops();
@@ -58,50 +55,38 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
       // If the section number is cleared, reset the fare.
       setFare(0);
     }
-  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction, fullTickets, halfTickets, quarterTickets]); // Rerun when these dependencies change
+  }, [sectionNumber, selectedFromStopIndex, selectedToStopIndex, stops, direction, fullTickets, halfTickets]); // Rerun when these dependencies change
 
   const handleSectionNumberChange = (text) => {
     setSectionNumber(text);
 
-    // Clear the previous timeout if it exists
-    if (sectionInputTimeout.current) {
-      clearTimeout(sectionInputTimeout.current);
-    }
-
     if (text && !isNaN(parseInt(text, 10)) && stops.length > 0) {
       const destinationSection = parseInt(text, 10);
-
+      
       const toStopIndex = stops.findIndex(
         (s) => s.sectionNumber === destinationSection
       );
 
       if (toStopIndex !== -1) {
-        const fromStop = stops[selectedFromStopIndex];
-        const toStop = stops[toStopIndex];
-
-        if (fromStop && toStop) {
-          const fromSection = fromStop.sectionNumber;
-          const toSection = toStop.sectionNumber;
-          const isForward = direction === 'forward';
-
-          if ((isForward && fromSection >= toSection) || (!isForward && fromSection <= toSection)) {
-            // This is now handled by the calculateFare function, but we can prevent the state update here
-            // to avoid a flicker. The user will be alerted when the fare is calculated with the final number.
-            return;
-          }
-
-          setPreviousToStopIndex(selectedToStopIndex);
-          setSelectedToStopIndex(toStopIndex);
-        }
+        setPreviousToStopIndex(selectedToStopIndex); // Store current index before updating
+        setSelectedToStopIndex(toStopIndex);
+        const destinationStop = stops[toStopIndex];
+        const destinationStopName = destinationStop.stopName;
+        console.log(`Section Number: ${destinationSection}, Destination: ${destinationStopName}`);
       } else {
-        // Use a timeout to check if the user has stopped typing
-        sectionInputTimeout.current = setTimeout(() => {
-          Alert.alert(
-            'Invalid Section',
-            `The section number "${destinationSection}" is not valid for this route.`,
-            [{ text: 'OK' }]
-          );
-        }, 1000); // 1-second delay
+        // Don't show alert for partial input, only if they've finished typing and it's invalid
+        // This logic is tricky, for now, we just prevent the update.
+        // A better UX might be to wait for a blur event.
+        // Alert.alert(
+        //   'Invalid Section', 
+        //   `The section number "${destinationSection}" is not valid for this route.`,
+        //   [{ text: 'OK' }]
+        // );
+        // setSelectedToStopIndex(previousToStopIndex);
+      }
+    } else {
+      if (text) { // Only reset if there is some text, to avoid resetting on initial render
+          setSelectedToStopIndex(previousToStopIndex);
       }
     }
   };
@@ -198,9 +183,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
         const baseFare = response.data.fare || response.data.calculatedFare;
         const numFull = parseInt(fullTickets, 10) || 0;
         const numHalf = parseInt(halfTickets, 10) || 0;
-        const numQuarter = parseInt(quarterTickets, 10) || 0;
         
-        const totalFare = (baseFare * numFull) + (Math.ceil(baseFare / 2) * numHalf) + (Math.ceil(baseFare / 4) * numQuarter);
+        const totalFare = (baseFare * numFull) + ((baseFare / 2) * numHalf);
         setFare(totalFare);
       } else {
         setFare(0);
@@ -223,9 +207,8 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
 
     const numFull = parseInt(fullTickets, 10) || 0;
     const numHalf = parseInt(halfTickets, 10) || 0;
-    const numQuarter = parseInt(quarterTickets, 10) || 0;
 
-    if (numFull === 0 && numHalf === 0 && numQuarter === 0) {
+    if (numFull === 0 && numHalf === 0) {
       Alert.alert('Error', 'Please enter the number of tickets.');
       return;
     }
@@ -239,9 +222,7 @@ const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashbo
     const fromSection = fromStop.sectionNumber;
     const toSection = toStop.sectionNumber;
 
-    let ticketSummary = `Bus: ${bus.busNumber} (${bus.category})
-Route: ${route.routeNumber} - ${route.routeName}
-Direction: ${directionText}
+    let ticketSummary = `Direction: ${directionText}
 From: ${fromStop.stopName}
 To: ${toStop.stopName}
 `;
@@ -250,20 +231,10 @@ To: ${toStop.stopName}
 `;
     }
     if (numHalf > 0) {
-      ticketSummary += `Half Tickets: ${numHalf}\n`;
-    }
-    if (numQuarter > 0) {
-      ticketSummary += `1/4 Tickets: ${numQuarter}\n`;
+      ticketSummary += `Half Tickets: ${numHalf}
+`;
     }
     ticketSummary += `Total Fare: Rs.${fare}`;
-
-    const numPaidAmount = parseFloat(paidAmount) || 0;
-    if (numPaidAmount > 0 && numPaidAmount >= fare) {
-        const balance = numPaidAmount - fare;
-        ticketSummary += `
-Paid Amount: Rs.${numPaidAmount}
-Balance: Rs.${balance}`;
-    }
 
 
     Alert.alert(
@@ -285,7 +256,6 @@ Balance: Rs.${balance}`;
       
       const numFull = parseInt(fullTickets, 10) || 0;
       const numHalf = parseInt(halfTickets, 10) || 0;
-      const numQuarter = parseInt(quarterTickets, 10) || 0;
 
       const ticketData = {
         routeId: route._id,
@@ -293,10 +263,9 @@ Balance: Rs.${balance}`;
         toSectionNumber: toStop.sectionNumber,
         busNumber: bus.busNumber,
         fare: fare,
-        passengerCount: numFull + numHalf + numQuarter,
+        passengerCount: numFull + numHalf,
         fullTicketCount: numFull,
         halfTicketCount: numHalf,
-        quarterTicketCount: numQuarter,
         paymentMethod: 'cash',
         direction: direction
       };
@@ -306,16 +275,10 @@ Balance: Rs.${balance}`;
         const response = await ticketsAPI.create(ticketData);
         
         if (response.data && response.data.success) {
-          let successMessage = `Ticket ID: ${response.data.ticket.ticketNumber}\nFare: Rs.${fare}`;
-          const numPaidAmount = parseFloat(paidAmount) || 0;
-          if (numPaidAmount > 0 && numPaidAmount >= fare) {
-            const balance = numPaidAmount - fare;
-            successMessage += `\nPaid: Rs.${numPaidAmount}\nBalance: Rs.${balance}`;
-          }
-
           Alert.alert(
             'Ticket Issued Successfully!',
-            successMessage,
+            `Ticket ID: ${response.data.ticket.ticketNumber}
+Fare: Rs.${fare}`,
             [
               { text: 'Issue Another', onPress: resetForm },
               { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -330,17 +293,12 @@ Balance: Rs.${balance}`;
       // Fallback to mock success
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      let alertMessage = `Ticket ID: TKT${Date.now()}\nFare: Rs.${fare}`;
-      const numPaidAmount = parseFloat(paidAmount) || 0;
-      if (numPaidAmount > 0 && numPaidAmount >= fare) {
-        const balance = numPaidAmount - fare;
-        alertMessage += `\nPaid: Rs.${numPaidAmount}\nBalance: Rs.${balance}`;
-      }
-      alertMessage += `\n\nNote: This is a demo ticket.`;
-
       Alert.alert(
         'Ticket Issued Successfully!',
-        alertMessage,
+        `Ticket ID: TKT${Date.now()}
+Fare: Rs.${fare}
+
+Note: This is a demo ticket.`,
         [
           { text: 'Issue Another', onPress: resetForm },
           { text: 'Back to Routes', onPress: onBackToDashboard }
@@ -355,10 +313,6 @@ Balance: Rs.${balance}`;
     }
   };
 
-  const handlePrint = () => {
-    handleIssueTicket();
-  };
-
   const resetForm = () => {
     setSectionNumber('');
     setSelectedFromStopIndex(0);
@@ -368,8 +322,6 @@ Balance: Rs.${balance}`;
     setCalculatingFare(false);
     setFullTickets('1');
     setHalfTickets('0');
-    setQuarterTickets('0');
-    setPaidAmount('');
   };
 
   const moveSelection = (move) => {
@@ -423,15 +375,6 @@ Balance: Rs.${balance}`;
                 : `${route.endPoint} → ${route.startPoint}`}
             </Text>
           )}
-        </View>
-        <View style={styles.headerRightActions}>
-          <View style={styles.headerFareContainer}>
-            <Text style={styles.headerFareLabel}>TOTAL FARE</Text>
-            <Text style={styles.headerFareAmount}>Rs.{fare}</Text>
-          </View>
-          <TouchableOpacity style={styles.printButton} onPress={handlePrint}>
-            <Text style={styles.printButtonText}>Print</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -549,17 +492,6 @@ Balance: Rs.${balance}`;
                 maxLength={2}
               />
             </View>
-            <View style={styles.ticketCountInputGroup}>
-              <Text style={styles.ticketCountLabel}>1/4 Tickets</Text>
-              <TextInput
-                style={styles.ticketCountInput}
-                value={quarterTickets}
-                onChangeText={(text) => setQuarterTickets(text.replace(/[^0-9]/g, ''))}
-                placeholder="e.g., 0"
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
           </View>
         </View>
 
@@ -605,29 +537,6 @@ Balance: Rs.${balance}`;
           )}
         </View>
 
-        {/* Payment Details */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Details (Optional)</Text>
-          <View style={styles.ticketCountInputGroup}>
-            <Text style={styles.ticketCountLabel}>Amount Paid</Text>
-            <TextInput
-              style={styles.ticketCountInput}
-              value={paidAmount}
-              onChangeText={(text) => setPaidAmount(text.replace(/[^0-9]/g, ''))}
-              placeholder="e.g., 500"
-              keyboardType="numeric"
-            />
-          </View>
-          {paidAmount && fare > 0 && parseFloat(paidAmount) >= fare && (
-            <View style={[styles.fareContainer, { marginTop: 15 }]}>
-              <Text style={styles.fareLabel}>Balance to Return:</Text>
-              <Text style={styles.fareAmount}>
-                Rs.{parseFloat(paidAmount) - fare}
-              </Text>
-            </View>
-          )}
-        </View>
-
         {/* Issue Button */}
         <TouchableOpacity
           style={[styles.issueButton, (!sectionNumber || issuingTicket) && styles.issueButtonDisabled]}
@@ -667,7 +576,6 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // Align items with space between
   },
   backButton: {
     marginRight: 15,
@@ -679,43 +587,6 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
-  },
-  headerRightActions: {
-    alignItems: 'flex-end',
-  },
-  headerFareContainer: {
-    backgroundColor: 'rgba(219, 212, 212, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffffff',
-    alignItems: 'center',
-    marginLeft: 10, // Add some margin to the left
-    marginBottom: 5, // Add margin below the fare container
-  },
-  headerFareLabel: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  headerFareAmount: {
-    color: 'yellow', // Changed to light red for better visibility on blue
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  printButton: {
-    backgroundColor: '#FF9800', // Orange color for the print button
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 5,
-    alignItems: 'center',
-  },
-  printButtonText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 16,
   },
   title: {
     fontSize: 20,
@@ -737,7 +608,7 @@ const styles = StyleSheet.create({
   },
   directionInfo: {
     fontSize: 14,
-    color: 'red', // Changed from '#4CAF50' to red
+    color: '#4CAF50',
     marginTop: 2,
     fontWeight: 'bold',
     backgroundColor: 'rgba(255,255,255,0.1)',

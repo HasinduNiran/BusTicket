@@ -7,9 +7,10 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { busesAPI } from '../services/api';
+import { busesAPI, authAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
@@ -19,8 +20,18 @@ const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
 
   useEffect(() => {
     const init = async () => {
-      const name = await AsyncStorage.getItem('name');
-      setConductorName(name || 'Conductor');
+      try {
+        const userDataString = await AsyncStorage.getItem('userData');
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          setConductorName(userData.fullName || userData.username || 'Conductor');
+        } else {
+          setConductorName('Conductor');
+        }
+      } catch (error) {
+        console.error("Failed to load user data", error);
+        setConductorName('Conductor');
+      }
       loadBuses();
     };
     init();
@@ -162,9 +173,15 @@ const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('name');
-    onLogout(); // Use the prop here
+    try {
+      await authAPI.logout();
+      onLogout(); // Use the prop here
+    } catch (error) {
+      console.error('Logout failed', error);
+      Alert.alert('Logout Failed', 'An error occurred while trying to log out.');
+      // As a fallback, still attempt to trigger the logout on the UI
+      onLogout();
+    }
   };
 
   const getCategoryColor = (category) => {
@@ -197,8 +214,13 @@ const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Select a Bus</Text>
-        <Text style={styles.conductorName}>Welcome, {conductorName}</Text>
+        <View>
+          <Text style={styles.title}>Select a Bus</Text>
+          <Text style={styles.conductorName}>Welcome, {conductorName}</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Buses List */}
@@ -248,10 +270,7 @@ const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
         )}
       </ScrollView>
 
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
+      {/* Logout Button - MOVED TO HEADER */}
     </View>
   );
 };
@@ -273,18 +292,25 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   header: {
-    marginBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 40 : 20,
+    paddingBottom: 15,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#333',
   },
   conductorName: {
     fontSize: 16,
-    textAlign: 'center',
     color: '#666',
-    marginTop: 5,
+    marginTop: 4,
   },
   scrollView: {
     flex: 1,
@@ -366,14 +392,13 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: '#f44336',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   logoutButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

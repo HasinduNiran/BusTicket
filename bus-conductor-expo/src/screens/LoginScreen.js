@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { authAPI } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState('conductor1'); // Pre-filled for testing
