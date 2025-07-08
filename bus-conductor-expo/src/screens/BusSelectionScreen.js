@@ -42,6 +42,31 @@ const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
       setLoading(true);
       console.log('=== Loading Conductor Buses ===');
       
+      // First validate the token
+      console.log('Validating authentication token...');
+      const isTokenValid = await authAPI.validateToken();
+      
+      if (!isTokenValid) {
+        console.log('Token validation failed - redirecting to login');
+        Alert.alert(
+          'Session Expired', 
+          'Your session has expired. Please log in again.',
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              // Navigate back to login
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            }
+          }]
+        );
+        return;
+      }
+      
+      console.log('Token is valid, proceeding with API call...');
+      
       // Try to load real data from API
       try {
         console.log('Calling getConductorBuses API...');
@@ -80,8 +105,24 @@ const BusSelectionScreen = ({ navigation, onBusSelected, onLogout }) => {
         console.log('Error response:', apiError.response?.data);
         console.log('Error status:', apiError.response?.status);
         
-        // If it's a network error, fall back to mock data
-        if (apiError.message === 'Network Error') {
+        // Handle different types of errors
+        if (apiError.response?.status === 401) {
+          console.log('Authentication error - redirecting to login');
+          Alert.alert(
+            'Authentication Error', 
+            'Your session has expired. Please log in again.',
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }
+            }]
+          );
+          return;
+        } else if (apiError.message === 'Network Error') {
           console.log('Network error - using mock data');
           Alert.alert(
             'Network Error', 

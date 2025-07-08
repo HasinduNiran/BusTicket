@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import mongoosePaginate from 'mongoose-paginate-v2';
 
 const ticketSchema = new mongoose.Schema({
   ticketNumber: {
@@ -92,6 +93,9 @@ const ticketSchema = new mongoose.Schema({
 ticketSchema.index({ conductorId: 1, issueDate: -1 });
 ticketSchema.index({ routeId: 1, issueDate: -1 });
 ticketSchema.index({ ticketNumber: 1 });
+
+// Add pagination plugin
+ticketSchema.plugin(mongoosePaginate);
 
 // Generate ticket number before saving
 ticketSchema.pre('save', async function(next) {
