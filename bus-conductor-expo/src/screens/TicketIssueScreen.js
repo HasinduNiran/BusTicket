@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { stopsAPI, ticketsAPI, faresAPI } from '../services/api';
+import SimplePrintService from '../services/SimplePrintService';
 
 const TicketIssueScreen = ({ user, route, bus, direction, onBack, onBackToDashboard }) => {
   const [stops, setStops] = useState([]);
@@ -257,7 +258,10 @@ To: ${toStop.stopName}
       const numFull = parseInt(fullTickets, 10) || 0;
       const numHalf = parseInt(halfTickets, 10) || 0;
 
+      // Use the /tickets/create endpoint with all relevant data
       const ticketData = {
+        conductorId: user?.id || 'demo-conductor',
+        ticketNumber: `TKT${Date.now()}`,
         routeId: route._id,
         fromSectionNumber: fromStop.sectionNumber,
         toSectionNumber: toStop.sectionNumber,
@@ -266,44 +270,73 @@ To: ${toStop.stopName}
         passengerCount: numFull + numHalf,
         fullTicketCount: numFull,
         halfTicketCount: numHalf,
+        quarterTicketCount: 0, // Not used in current UI but required by API
         paymentMethod: 'cash',
         direction: direction
       };
       
       try {
-        // Try to issue ticket via API
+        // Try to create ticket via API and save to database
         const response = await ticketsAPI.create(ticketData);
         
         if (response.data && response.data.success) {
+          const ticket = response.data.ticket;
+          
+          // Show success message with print/download options
           Alert.alert(
             'Ticket Issued Successfully!',
-            `Ticket ID: ${response.data.ticket.ticketNumber}
-Fare: Rs.${fare}`,
+            `Ticket Number: ${ticket.ticketNumber}\nFare: Rs.${ticket.fare}\nPassengers: ${ticket.passengerCount}`,
             [
+              { text: 'Print', onPress: () => handlePrintTicket(ticket) },
+              { text: 'Download', onPress: () => handleDownloadTicket(ticket) },
               { text: 'Issue Another', onPress: resetForm },
-              { text: 'Back to Routes', onPress: onBackToDashboard }
+              { text: 'Done', onPress: onBackToDashboard }
             ]
           );
           return;
         }
       } catch (apiError) {
-        console.log('API not available, showing mock success:', apiError.message);
+        console.log('API not available, creating mock ticket:', apiError.message);
+        
+        // Create mock ticket for demo
+        const mockTicket = {
+          ticketNumber: `TKT${Date.now()}`,
+          fromStop: {
+            stopName: fromStop.stopName,
+            sectionNumber: fromStop.sectionNumber
+          },
+          toStop: {
+            stopName: toStop.stopName,
+            sectionNumber: toStop.sectionNumber
+          },
+          routeId: {
+            routeName: route.routeName,
+            routeNumber: route.routeNumber
+          },
+          busNumber: bus.busNumber,
+          fare: fare,
+          passengerCount: numFull + numHalf,
+          fullTicketCount: numFull,
+          halfTicketCount: numHalf,
+          paymentMethod: 'cash',
+          direction: direction,
+          issueDate: new Date().toISOString(),
+          conductorId: user?._id,
+          status: 'active'
+        };
+        
+        // Show success message with print/download options
+        Alert.alert(
+          'Demo Ticket Issued!',
+          `Ticket Number: ${mockTicket.ticketNumber}\nFare: Rs.${mockTicket.fare}\nPassengers: ${mockTicket.passengerCount}`,
+          [
+            { text: 'Print', onPress: () => handlePrintTicket(mockTicket) },
+            { text: 'Download', onPress: () => handleDownloadTicket(mockTicket) },
+            { text: 'Issue Another', onPress: resetForm },
+            { text: 'Done', onPress: onBackToDashboard }
+          ]
+        );
       }
-      
-      // Fallback to mock success
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      Alert.alert(
-        'Ticket Issued Successfully!',
-        `Ticket ID: TKT${Date.now()}
-Fare: Rs.${fare}
-
-Note: This is a demo ticket.`,
-        [
-          { text: 'Issue Another', onPress: resetForm },
-          { text: 'Back to Routes', onPress: onBackToDashboard }
-        ]
-      );
       
     } catch (error) {
       Alert.alert('Error', 'Failed to issue ticket. Please try again.');
@@ -313,10 +346,32 @@ Note: This is a demo ticket.`,
     }
   };
 
+  const handlePrintTicket = async (ticket) => {
+    try {
+      const result = await SimplePrintService.printTicket(ticket);
+      if (result.success) {
+        Alert.alert('Success', 'Ticket sent to printer successfully!');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to print ticket. Please try again.');
+    }
+  };
+
+  const handleDownloadTicket = async (ticket) => {
+    try {
+      const result = await SimplePrintService.downloadTicket(ticket);
+      if (result.success) {
+        // Download success message is shown in the service
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to download ticket. Please try again.');
+    }
+  };
+
   const resetForm = () => {
     setSectionNumber('');
     setSelectedFromStopIndex(0);
-    setSelectedToStopIndex(0); // Allow same as from initially
+    setSelectedToStopIndex(0);
     setSelectingStop('from');
     setFare(0);
     setCalculatingFare(false);

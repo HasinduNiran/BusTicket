@@ -5,12 +5,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const getApiBaseUrl = () => {
   if (__DEV__) {
     // Using your computer's actual IP address
-    return 'http://192.168.8.102:5000/api'; // Your main network IP
+    return 'http://192.168.216.180:5001/api'; // Your main network IP
     // Alternatives if the above doesn't work:
     // return 'http://192.168.184.1:5000/api';
     // return 'http://10.0.2.2:5000/api'; // Android emulator
   }
-  return 'http://localhost:5000/api'; // Production
+  return 'http://localhost:5001/api'; // Production
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -78,6 +78,8 @@ export const authAPI = {
   getStoredUser: async () => {
     try {
       const userData = await AsyncStorage.getItem('userData');
+      console.log('Retrieved user data from storage:', userData);
+      
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
       return null;
@@ -117,9 +119,10 @@ export const sectionsAPI = {
 // Tickets API
 export const ticketsAPI = {
   generate: (ticketData) => api.post('/tickets/generate', ticketData),
-  create: (ticketData) => api.post('/tickets/generate', ticketData), // Alias for backward compatibility
+  create: (ticketData) => api.post('/tickets/create', ticketData), // Use the correct create endpoint
   getAll: () => api.get('/tickets'),
   getConductorTickets: (conductorId) => api.get(`/tickets/conductor/${conductorId}`),
+  getTicketById: (ticketId) => api.get(`/tickets/${ticketId}`),
 };
 
 // Users API
