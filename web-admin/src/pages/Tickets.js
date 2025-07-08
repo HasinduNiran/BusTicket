@@ -23,9 +23,9 @@ import {
   Print as PrintIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import moment from 'moment';
+import { useAuth } from '../contexts/AuthContext';
 
 const Tickets = () => {
   const [tickets, setTickets] = useState([]);
@@ -37,6 +37,8 @@ const Tickets = () => {
     startDate: '',
     endDate: '',
   });
+  
+  const { api } = useAuth(); // Get the configured API instance
 
   useEffect(() => {
     fetchRoutes();
@@ -49,7 +51,7 @@ const Tickets = () => {
 
   const fetchRoutes = async () => {
     try {
-      const response = await axios.get('/routes');
+      const response = await api.get('/routes');
       setRoutes(response.data.routes || []);
     } catch (error) {
       console.error('Error fetching routes:', error);
@@ -64,7 +66,7 @@ const Tickets = () => {
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
-      const response = await axios.get(`/tickets/all?${params.toString()}`);
+      const response = await api.get(`/tickets/all?${params.toString()}`);
       setTickets(response.data.tickets?.docs || []);
     } catch (error) {
       console.error('Error fetching tickets:', error);
@@ -77,7 +79,7 @@ const Tickets = () => {
   const handleCancelTicket = async (ticketId) => {
     if (window.confirm('Are you sure you want to cancel this ticket?')) {
       try {
-        await axios.patch(`/tickets/${ticketId}/cancel`);
+        await api.patch(`/tickets/${ticketId}/cancel`);
         toast.success('Ticket cancelled successfully');
         fetchTickets();
       } catch (error) {

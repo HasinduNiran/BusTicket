@@ -118,6 +118,8 @@ router.post('/generate', auth, conductorAuth, async (req, res) => {
 router.post('/create', auth, conductorAuth, async (req, res) => {
   try {
     const {
+      ticketNumber,
+      conductorId,
       routeId,
       fromSectionNumber,
       toSectionNumber,
@@ -129,6 +131,7 @@ router.post('/create', auth, conductorAuth, async (req, res) => {
       quarterTicketCount,
       paymentMethod,
       direction,
+      status 
     } = req.body;
 
     // Basic validation
@@ -145,6 +148,7 @@ router.post('/create', auth, conductorAuth, async (req, res) => {
     }
 
     const ticket = new Ticket({
+      ticketNumber,
       routeId,
       fromStop: {
         stopId: fromStop._id,
@@ -164,8 +168,8 @@ router.post('/create', auth, conductorAuth, async (req, res) => {
       quarterTicketCount,
       paymentMethod,
       direction,
-      conductorId: req.user.userId, // Get conductor ID from auth middleware
-      status: 'issued',
+      conductorId, // Get conductor ID from auth middleware
+      status
     });
 
     await ticket.save();

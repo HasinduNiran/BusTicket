@@ -27,7 +27,10 @@ api.interceptors.request.use(
     try {
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
+        console.log('Adding token to request headers:', token.substring(0, 20) + '...');
         config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.log('No token found in AsyncStorage');
       }
     } catch (error) {
       console.error('Error getting auth token:', error);
@@ -42,21 +45,58 @@ api.interceptors.request.use(
 // Add response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     console.error('API Error:', error.response?.data || error.message);
+    
+    // If we get a 401 error, the token might be invalid/expired
+    if (error.response?.status === 401) {
+      console.log('Token invalid/expired, clearing stored auth data');
+      try {
+        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem('userData');
+      } catch (asyncError) {
+        console.error('Error clearing auth data:', asyncError);
+      }
+    }
+    
     return Promise.reject(error);
   }
 );
 
 // Auth API
 export const authAPI = {
+  validateToken: async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        return false;
+      }
+      
+      // Try to make a simple authenticated request to validate token
+      const response = await api.get('/auth/me');
+      return response.status === 200;
+    } catch (error) {
+      console.log('Token validation failed:', error.response?.data || error.message);
+      // Clear invalid token
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('userData');
+      return false;
+    }
+  },
+  
   login: async (credentials) => {
     try {
       console.log('Attempting login with credentials:', { email: credentials.email, password: '***' });
+      
+      // Clear any existing invalid tokens first
+      await AsyncStorage.removeItem('authToken');
+      await AsyncStorage.removeItem('userData');
+      
       const response = await api.post('/auth/login', credentials);
       console.log('Login response:', response.data);
       
       if (response.data.token) {
+        console.log('Storing new token:', response.data.token.substring(0, 20) + '...');
         await AsyncStorage.setItem('authToken', response.data.token);
         await AsyncStorage.setItem('userData', JSON.stringify(response.data.user));
       }
@@ -66,6 +106,7 @@ export const authAPI = {
       throw error;
     }
   },
+  
   logout: async () => {
     try {
       await AsyncStorage.removeItem('authToken');
@@ -75,9 +116,12 @@ export const authAPI = {
       throw error;
     }
   },
+  
   getStoredUser: async () => {
     try {
       const userData = await AsyncStorage.getItem('userData');
+      console.log('Retrieved user data from storage:', userData);
+      
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
       return null;
@@ -117,9 +161,10 @@ export const sectionsAPI = {
 // Tickets API
 export const ticketsAPI = {
   generate: (ticketData) => api.post('/tickets/generate', ticketData),
-  create: (ticketData) => api.post('/tickets/generate', ticketData), // Alias for backward compatibility
+  create: (ticketData) => api.post('/tickets/create', ticketData), // Use the correct create endpoint
   getAll: () => api.get('/tickets'),
   getConductorTickets: (conductorId) => api.get(`/tickets/conductor/${conductorId}`),
+  getTicketById: (ticketId) => api.get(`/tickets/${ticketId}`),
 };
 
 // Users API
